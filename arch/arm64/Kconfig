@@ -1116,6 +1116,36 @@ config SYSVIPC_COMPAT
 	def_bool y
 	depends on COMPAT && SYSVIPC
 
+config KEYS_COMPAT
+        def_bool y
+        depends on COMPAT && KEYS
+
+config COMPAT_VDSO
+        bool "32-bit vDSO"
+        depends on COMPAT
+        select ARM_ARCH_TIMER_VCT_ACCESS
+        default n
+        help
+          Warning: a 32-bit toolchain is necessary to build the vDSO. You endmenu
+	  must explicitly define which toolchain should be used by setting menu "Power management options"
+	  CROSS_COMPILE_ARM32 to the prefix of the 32-bit toolchain (same format source "kernel/power/Kconfig"
+	  as CROSS_COMPILE). If CROSS_COMPILE_ARM32 is empty, a warning will be config ARCH_SUSPEND_POSSIBLE
+	  printed and the kernel will built as if COMPAT_VDSO had not been def_bool y 
+          set. if CROSS_COMPILE_ARM32 is set to an invalid prefix, compilation
+	  will be aborted.
+
+          Provide a vDSO to 32-bit processes. It includes the symbols provided
+          by the vDSO from the 32-bit kernel, so that a 32-bit libc can use
+          the compat vDSO without modification. It also provides sigreturn
+          trampolines, replacing the sigreturn page.
+
+config CROSS_COMPILE_ARM32
+        string "32-bit toolchain prefix"
+        help
+          Same as setting CROSS_COMPILE_ARM32 in the environment, but saved for
+          future builds. The environment variable overrides this config option.
+
+
 endmenu
 
 menu "Power management options"
@@ -1123,10 +1153,10 @@ menu "Power management options"
 source "kernel/power/Kconfig"
 
 config ARCH_SUSPEND_POSSIBLE
-	def_bool y
+        def_bool y
 
 config ARM64_CPU_SUSPEND
-	def_bool PM_SLEEP
+        def_bool PM_SLEEP
 
 endmenu
 
