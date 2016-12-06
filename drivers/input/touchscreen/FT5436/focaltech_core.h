@@ -248,7 +248,7 @@ struct fts_ts_data {
 	struct pinctrl_state *pinctrl_state_suspend;
 	struct pinctrl_state *pinctrl_state_release;
 #endif
-
+        bool disable_keys;
 #ifdef LENOVO_TP_HW_INFO
 	struct class *tp_class;
 	int index;
