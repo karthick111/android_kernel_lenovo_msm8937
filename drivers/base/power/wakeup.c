@@ -19,6 +19,16 @@
 
 #include "power.h"
 
+<<<<<<< HEAD
+=======
+static bool enable_qcom_rx_wakelock_ws = true;
+module_param(enable_qcom_rx_wakelock_ws, bool, 0644);
+static bool enable_wlan_extscan_wl_ws = true;
+module_param(enable_wlan_extscan_wl_ws, bool, 0644);
+static bool enable_ipa_ws = true;
+module_param(enable_ipa_ws, bool, 0644);
+
+>>>>>>> 8d10d4b... drivers: wakeup: bypass two WiFi wakelocks
 /*
  * If set, the suspend/hibernate code will abort transitions to a sleep state
  * if wakeup events are registered during or immediately before the transition.
@@ -421,6 +431,20 @@ static void wakeup_source_activate(struct wakeup_source *ws)
 {
 	unsigned int cec;
 
+<<<<<<< HEAD
+=======
+	if ((!enable_ipa_ws && !strncmp(ws->name, "IPA_WS", 6)) ||
+		(!enable_wlan_extscan_wl_ws &&
+			!strncmp(ws->name, "wlan_extscan_wl", 15)) ||
+		(!enable_qcom_rx_wakelock_ws &&
+			!strncmp(ws->name, "qcom_rx_wakelock", 16))) {
+		if (ws->active)
+			wakeup_source_deactivate(ws);
+
+		return;
+	}
+
+>>>>>>> 8d10d4b... drivers: wakeup: bypass two WiFi wakelocks
 	/*
 	 * active wakeup source should bring the system
 	 * out of PM_SUSPEND_FREEZE state
