@@ -1334,7 +1334,9 @@ static int fb_notifier_callback(struct notifier_block *self,
 
 	if (evdata && evdata->data && event == FB_EVENT_BLANK && fts_data && fts_data->client) {
 		blank = evdata->data;
-        if (*blank == FB_BLANK_UNBLANK) {
+        if (*blank == FB_BLANK_UNBLANK
+			|| *blank == FB_BLANK_NORMAL
+			|| *blank == FB_BLANK_VSYNC_SUSPEND) {
             wake_lock(&fts_data->resume_wake);
             queue_work(fts_data->ts_workqueue, &fts_data->resume_work);
 			//fts_ts_resume(&fts_data->client->dev);
