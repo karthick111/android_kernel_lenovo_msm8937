@@ -38,15 +38,40 @@ menuconfig MSMB_CAMERA
 	  adds support for the camera driver stack including sensor, isp
 	  and postprocessing drivers.
 
-config MSMB_CAMERA_DEBUG
-	bool "Qualcomm MSM camera 2.0 debugging with printk"
-	depends on MSMB_CAMERA
-	---help---
-	  Enable printk() debug for msm camera 2.0
+menuconfig LENOVO_DIR_CAMERA
+        bool "Lenovo MSM camera directory support"
+        depends on MSMB_CAMERA
+        ---help---
+          Say Y here to enable selecting the vendor lenovo camera driver
+          directory to compile into the kernel.
 
-if MSMB_CAMERA
+menuconfig QUALCOMM_DIR_CAMERA
+        bool "Qualcomm MSM camera directory support"
+        depends on MSMB_CAMERA
+        ---help---
+          Say Y here to enable selecting the vendor lenovo camera driver
+          directory to compile into the kernel.
+
+config CAMERA_WT_FACTORY_SUPPORTED
+        bool "Lenovo Wingtech factory supported about camera"
+        depends on MSMB_CAMERA
+        ---help---
+          Enable to support the wingtech factory about camera
+
+config MSMB_CAMERA_DEBUG
+        bool "Qualcomm MSM camera 2.0 debugging with printk"
+        depends on MSMB_CAMERA
+        ---help---
+          Enable printk() debug for msm camera 2.0
+
+if LENOVO_DIR_CAMERA
+source "drivers/media/platform/msm/camera-lenovo/camera-driver/Kconfig"
+endif # LENOVO_DIR_CAMERA
+
+if QUALCOMM_DIR_CAMERA
 source "drivers/media/platform/msm/camera_v2/Kconfig"
-endif # MSMB_CAMERA
+endif # QUALCOMM_DIR_CAMERA
+
 source "drivers/media/platform/msm/dvb/Kconfig"
 source "drivers/media/platform/msm/broadcast/Kconfig"
 source "drivers/media/platform/msm/sde/Kconfig"

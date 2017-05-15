@@ -398,6 +398,7 @@ LINUXINCLUDE    := \
 		-Iarch/$(hdr-arch)/include/generated \
 		$(if $(KBUILD_SRC), -I$(srctree)/include) \
 		-Iinclude \
+		-Idrivers/media/platform/msm/camera-lenovo/include \
 		$(USERINCLUDE)
 
 KBUILD_CPPFLAGS := -D__KERNEL__
@@ -1068,6 +1069,9 @@ PHONY += headers_install
 headers_install: __headers
 	$(if $(wildcard $(srctree)/arch/$(hdr-arch)/include/uapi/asm/Kbuild),, \
 	  $(error Headers not exportable for the $(SRCARCH) architecture))
+	$(Q)$(MAKE) $(hdr-inst)=drivers/media/platform/msm/camera-lenovo/include/lenovo_media
+	$(Q)$(MAKE) $(hdr-inst)=drivers/media/platform/msm/camera-lenovo/include/lenovo_video
+	$(Q)$(MAKE) $(hdr-inst)=drivers/media/platform/msm/camera-lenovo/include/lenovo_soc
 	$(Q)$(MAKE) $(hdr-inst)=include/uapi
 	$(Q)$(MAKE) $(hdr-inst)=arch/$(hdr-arch)/include/uapi/asm $(hdr-dst)
 
@@ -1077,6 +1081,9 @@ headers_check_all: headers_install_all
 
 PHONY += headers_check
 headers_check: headers_install
+	$(Q)$(MAKE) $(hdr-inst)=drivers/media/platform/msm/camera-lenovo/include/lenovo_media HDRCHECK=1
+	$(Q)$(MAKE) $(hdr-inst)=drivers/media/platform/msm/camera-lenovo/include/lenovo_video HDRCHECK=1
+	$(Q)$(MAKE) $(hdr-inst)=drivers/media/platform/msm/camera-lenovo/include/lenovo_soc HDRCHECK=1
 	$(Q)$(MAKE) $(hdr-inst)=include/uapi HDRCHECK=1
 	$(Q)$(MAKE) $(hdr-inst)=arch/$(hdr-arch)/include/uapi/asm $(hdr-dst) HDRCHECK=1
 

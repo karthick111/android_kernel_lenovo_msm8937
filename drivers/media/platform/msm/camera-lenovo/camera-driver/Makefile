@@ -1,0 +1,25 @@
+ccflags-y += -Idrivers/media/platform/msm/camera-lenovo/camera-driver
+ccflags-y += -Idrivers/media/platform/msm/camera-lenovo/camera-driver/sensor
+ccflags-y += -Idrivers/media/platform/msm/camera-lenovo/camera-driver/codecs
+ccflags-y += -Idrivers/media/platform/msm/camera-lenovo/camera-driver/isps
+ccflags-y += -Idrivers/media/platform/msm/camera-lenovo/camera-driver/pproc
+ccflags-y += -Idrivers/media/platform/msm/camera-lenovo/camera-driver/msm_vb2
+ccflags-y += -Idrivers/media/platform/msm/camera-lenovo/camera-driver/camera
+ccflags-y += -Idrivers/media/platform/msm/camera-lenovo/camera-driver/jpeg_10
+ccflags-y += -Idrivers/media/platform/msm/camera-lenovo/camera-driver/jpeg_dma
+ccflags-y += -Idrivers/media/platform/msm/camera-lenovo/camera-driver/fd
+ccflags-y += -Idrivers/media/platform/msm/camera-lenovo/camera-driver/common
+
+obj-$(CONFIG_MSMB_CAMERA) += common/
+obj-$(CONFIG_MSMB_CAMERA) += msm.o
+obj-$(CONFIG_MSMB_CAMERA) += camera/
+obj-$(CONFIG_MSMB_CAMERA) += msm_vb2/
+obj-$(CONFIG_MSMB_CAMERA) += sensor/
+obj-$(CONFIG_MSMB_CAMERA) += pproc/
+obj-$(CONFIG_MSMB_CAMERA) += isp/
+obj-$(CONFIG_MSMB_CAMERA) += ispif/
+obj-$(CONFIG_MSMB_JPEG) += jpeg_10/
+obj-$(CONFIG_MSM_JPEGDMA) += jpeg_dma/
+obj-$(CONFIG_MSMB_CAMERA) += msm_buf_mgr/
+obj-$(CONFIG_MSM_FD) += fd/
+obj-$(CONFIG_MSMB_CAMERA) += cci_intf.o
