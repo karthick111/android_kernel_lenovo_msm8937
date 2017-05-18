@@ -192,6 +192,8 @@ config SND_SOC_MSM8X16
 	tristate "SoC Machine driver for MSM8916"
 	depends on ARCH_MSM8953 || ARCH_MSM8937
 	select SND_SOC_QDSP6V2
+	select SND_SOC_TS3A227E
+	select SND_SOC_AW87319
 	select SND_SOC_MSM_STUB
 	select SND_SOC_MSM_HOSTLESS_PCM
 	select SND_DYNAMIC_MINORS
