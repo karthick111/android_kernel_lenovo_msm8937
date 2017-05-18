@@ -30,6 +30,7 @@
 #include <linux/mfd/wcd9xxx/core.h>
 #include <linux/qdsp6v2/apr.h>
 #include <linux/timer.h>
+#include <linux/switch.h>
 #include <linux/workqueue.h>
 #include <linux/sched.h>
 #include <sound/q6afe-v2.h>
@@ -133,7 +134,7 @@ static const DECLARE_TLV_DB_SCALE(digital_gain, 0, 1, 0);
 static const DECLARE_TLV_DB_SCALE(analog_gain, 0, 25, 1);
 static struct snd_soc_dai_driver msm8x16_wcd_i2s_dai[];
 /* By default enable the internal speaker boost */
-static bool spkr_boost_en = true;
+static bool spkr_boost_en = false;
 
 #define MSM8X16_WCD_ACQUIRE_LOCK(x) \
 	mutex_lock_nested(&x, SINGLE_DEPTH_NESTING)
@@ -985,6 +986,16 @@ static int msm8x16_wcd_free_irq(struct snd_soc_codec *codec,
 	return wcd9xxx_spmi_free_irq(irq, data);
 }
 
+static void msm8x16_set_rx_mute(struct snd_soc_codec *codec)
+{
+#if 0
+	snd_soc_update_bits(codec, MSM8X16_WCD_A_CDC_CONN_RX1_B1_CTL, 0xff, 0);
+	snd_soc_update_bits(codec, MSM8X16_WCD_A_CDC_CONN_RX1_B2_CTL, 0xff, 0);
+	snd_soc_update_bits(codec, MSM8X16_WCD_A_CDC_CONN_RX2_B1_CTL, 0xff, 0);
+	snd_soc_update_bits(codec, MSM8X16_WCD_A_CDC_CONN_RX2_B2_CTL, 0xff, 0);
+#endif
+}
+
 static const struct wcd_mbhc_cb mbhc_cb = {
 	.enable_mb_source = msm8x16_wcd_enable_ext_mb_source,
 	.trim_btn_reg = msm8x16_trim_btn_reg,
@@ -1007,6 +1018,7 @@ static const struct wcd_mbhc_cb mbhc_cb = {
 	.hph_pa_on_status = msm8x16_wcd_mbhc_hph_pa_on_status,
 	.set_btn_thr = msm8x16_wcd_mbhc_program_btn_thr,
 	.extn_use_mb = msm8x16_wcd_use_mb,
+	.set_rx_mute = msm8x16_set_rx_mute,
 };
 
 static const uint32_t wcd_imped_val[] = {4, 8, 12, 13, 16,
@@ -2870,7 +2882,7 @@ static const struct soc_enum rx2_mix1_inp2_chain_enum =
 		3, 6, rx_mix1_text);
 
 static const struct soc_enum rx2_mix1_inp3_chain_enum =
-	SOC_ENUM_SINGLE(MSM8X16_WCD_A_CDC_CONN_RX2_B1_CTL,
+	SOC_ENUM_SINGLE(MSM8X16_WCD_A_CDC_CONN_RX2_B2_CTL,
 		0, 6, rx_mix1_text);
 
 /* RX2 MIX2 */
@@ -2888,7 +2900,7 @@ static const struct soc_enum rx3_mix1_inp2_chain_enum =
 		3, 6, rx_mix1_text);
 
 static const struct soc_enum rx3_mix1_inp3_chain_enum =
-	SOC_ENUM_SINGLE(MSM8X16_WCD_A_CDC_CONN_RX3_B1_CTL,
+	SOC_ENUM_SINGLE(MSM8X16_WCD_A_CDC_CONN_RX3_B2_CTL,
 		0, 6, rx_mix1_text);
 
 /* DEC */
@@ -3535,6 +3547,7 @@ static int msm8x16_wcd_codec_enable_micbias(struct snd_soc_dapm_widget *w,
 	struct snd_soc_codec *codec = w->codec;
 	struct msm8x16_wcd_priv *msm8x16_wcd =
 				snd_soc_codec_get_drvdata(codec);
+	struct wcd_mbhc *mbhc = &msm8x16_wcd->mbhc;
 	u16 micb_int_reg;
 	char *internal1_text = "Internal1";
 	char *internal2_text = "Internal2";
@@ -3566,7 +3579,8 @@ static int msm8x16_wcd_codec_enable_micbias(struct snd_soc_dapm_widget *w,
 					0x02, 0x02);
 			snd_soc_update_bits(codec, micb_int_reg, 0x80, 0x80);
 		} else if (strnstr(w->name, internal2_text, strlen(w->name))) {
-			snd_soc_update_bits(codec, micb_int_reg, 0x10, 0x10);
+			if (!mbhc->mbhc_cfg->hs_ext_rbias)
+				snd_soc_update_bits(codec, micb_int_reg, 0x10, 0x10);
 			snd_soc_update_bits(codec, w->reg, 0x60, 0x00);
 		} else if (strnstr(w->name, internal3_text, strlen(w->name))) {
 			snd_soc_update_bits(codec, micb_int_reg, 0x2, 0x2);
@@ -5891,6 +5905,13 @@ static int msm8x16_wcd_codec_probe(struct snd_soc_codec *codec)
 		registered_codec = NULL;
 		return -ENOMEM;
 	}
+	msm8x16_wcd_priv->mbhc.edev.name = "h2w";
+	ret = switch_dev_register(&msm8x16_wcd_priv->mbhc.edev);
+	if (ret < 0) {
+	   dev_err(codec->dev, "switch_dev_register() failed: %d\n", ret);
+	   return ret;
+	}
+
 	return 0;
 }
 
@@ -5907,7 +5928,7 @@ static int msm8x16_wcd_codec_remove(struct snd_soc_codec *codec)
 	iounmap(msm8x16_wcd->dig_base);
 	kfree(msm8x16_wcd_priv->fw_data);
 	kfree(msm8x16_wcd_priv);
-
+	switch_dev_unregister(&msm8x16_wcd_priv->mbhc.edev);
 	return 0;
 }
 
