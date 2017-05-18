@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/of.h>
 #include <linux/rtc.h>
+#include <linux/time.h>
 #include <linux/err.h>
 #include <linux/debugfs.h>
 #include <linux/slab.h>
@@ -237,10 +238,10 @@ enum fg_mem_data_index {
 
 static struct fg_mem_setting settings[FG_MEM_SETTING_MAX] = {
 	/*       ID                    Address, Offset, Value*/
-	SETTING(SOFT_COLD,       0x454,   0,      100),
-	SETTING(SOFT_HOT,        0x454,   1,      400),
-	SETTING(HARD_COLD,       0x454,   2,      50),
-	SETTING(HARD_HOT,        0x454,   3,      450),
+	SETTING(SOFT_COLD,       0x454,   0,      10),
+	SETTING(SOFT_HOT,        0x454,   1,      500),
+	SETTING(HARD_COLD,       0x454,   2,      0),
+	SETTING(HARD_HOT,        0x454,   3,      600),
 	SETTING(RESUME_SOC,      0x45C,   1,      0),
 	SETTING(BCL_LM_THRESHOLD, 0x47C,   2,      50),
 	SETTING(BCL_MH_THRESHOLD, 0x47C,   3,      752),
@@ -311,6 +312,7 @@ static struct fg_mem_data fg_backup_regs[FG_BACKUP_MAX] = {
 };
 
 static int fg_debug_mask;
+static int update_curr;
 module_param_named(
 	debug_mask, fg_debug_mask, int, S_IRUSR | S_IWUSR
 );
@@ -639,6 +641,9 @@ struct fg_chip {
 	bool			*batt_range_ocv;
 	int			*batt_range_pct;
 };
+//fake temp
+int g_fake_battery_temp = 200;
+int if_use_fake_temperature = 0;
 
 /* FG_MEMIF DEBUGFS structures */
 #define ADDR_LEN	4	/* 3 byte address + 1 space character */
@@ -2737,6 +2742,70 @@ out:
 			&chip->update_sram_data,
 			msecs_to_jiffies(resched_ms));
 }
+static int update_current(struct fg_chip *chip)
+{
+	int rc;
+	u8 reg[2];
+	int64_t temp = 0;
+	s64 start_time,end_time;
+	struct timespec cur_time;
+	unsigned int rd_time;
+
+	cur_time = current_kernel_time();
+	start_time = timespec_to_ns(&cur_time);
+
+	rc = fg_mem_read(chip, reg, fg_data[3].address,
+	fg_data[3].len, fg_data[3].offset, 0);
+	if (rc) {
+		pr_err("Failed to update batt curr data\n");
+		return 0;
+	}
+	temp = reg[0] | (reg[1] << 8);
+	temp = twos_compliment_extend(temp, fg_data[3].len);
+	fg_data[3].value = div_s64(
+			(s64)temp * LSB_16B_NUMRTR,
+			LSB_16B_DENMTR);
+	cur_time = current_kernel_time();
+	end_time = timespec_to_ns(&cur_time);
+	rd_time = div_s64(end_time - start_time, 1000000);
+	if (fg_debug_mask & FG_MEM_DEBUG_READS)
+		pr_info("BATT_CURR %lld %d rd_time is %d ms\n",temp, fg_data[3].value,rd_time);
+	return fg_data[3].value;
+}
+int batt_curr_get(void)
+{
+	struct power_supply *bms_psy;
+	struct fg_chip *chip;
+
+	bms_psy = power_supply_get_by_name("bms");
+	if (!bms_psy) {
+		pr_err("bms psy not found\n");
+		return 0;
+	}
+
+	chip = container_of(bms_psy, struct fg_chip, bms_psy);
+
+	return update_current(chip);
+}
+
+static int update_current_now(char *buffer,struct kernel_param *kp)
+{
+
+	struct power_supply *bms_psy;
+	struct fg_chip *chip;
+
+	bms_psy = power_supply_get_by_name("bms");
+	if (!bms_psy) {
+		pr_err("bms psy not found\n");
+		return 0;
+	}
+
+	chip = container_of(bms_psy, struct fg_chip, bms_psy);
+
+	return sprintf(buffer,"%d",update_current(chip));
+}
+module_param_call(update_curr,NULL,update_current_now,&update_curr,0444);
+MODULE_PARM_DESC(update_curr, "Update batttery current");
 
 #define BATT_TEMP_OFFSET	3
 #define BATT_TEMP_CNTRL_MASK	0x17
@@ -4604,7 +4673,25 @@ static int fg_power_get_property(struct power_supply *psy,
 		val->intval = chip->batt_max_voltage_uv;
 		break;
 	case POWER_SUPPLY_PROP_TEMP:
-		val->intval = get_sram_prop_now(chip, FG_DATA_BATT_TEMP);
+		//david
+		if(if_use_fake_temperature == 1)
+			val->intval = g_fake_battery_temp;
+		else
+			val->intval = get_sram_prop_now(chip, FG_DATA_BATT_TEMP);
+		//non-linear of ntcc
+		if(val->intval < -100 )
+		{
+			val->intval = val->intval -50;
+			break;
+               	}
+		if((val->intval >= -100) && (val->intval < 0))
+		{
+			val->intval = val->intval -30;
+			break;
+		}
+		if((val->intval >= 0) && (val->intval < 50)){
+                        val->intval = val->intval -20;
+                }
 		break;
 	case POWER_SUPPLY_PROP_COOL_TEMP:
 		val->intval = get_prop_jeita_temp(chip, FG_MEM_SOFT_COLD);
@@ -6304,7 +6391,7 @@ fail:
 #define PROFILE_COMPARE_LEN		32
 #define THERMAL_COEFF_ADDR		0x444
 #define THERMAL_COEFF_OFFSET		0x2
-#define BATTERY_PSY_WAIT_MS		2000
+#define BATTERY_PSY_WAIT_MS		1000
 static int fg_batt_profile_init(struct fg_chip *chip)
 {
 	int rc = 0, ret;
@@ -8675,6 +8762,28 @@ done:
 	fg_cleanup(chip);
 }
 
+//fake temp
+static ssize_t show_fake_battery_temperature(struct device *dev,struct device_attribute *attr,char *buf)
+{
+
+	return sprintf(buf,"%d\n",g_fake_battery_temp);
+}
+
+static ssize_t store_fake_battery_temperature(struct device *dev,struct device_attribute *attr,const char *buf,size_t size)
+{
+	int data = 0;
+	int ret = 0;
+	if(ret)
+		return ret;	
+	ret = kstrtoint(buf,10,&data);
+	if_use_fake_temperature = 1;
+	g_fake_battery_temp = data;
+
+	return size;
+}
+
+static DEVICE_ATTR(battery_temperature,0664,show_fake_battery_temperature,store_fake_battery_temperature);
+
 static int fg_probe(struct spmi_device *spmi)
 {
 	struct device *dev = &(spmi->dev);
@@ -8683,7 +8792,7 @@ static int fg_probe(struct spmi_device *spmi)
 	struct resource *resource;
 	u8 subtype, reg;
 	int rc = 0;
-
+	int ret_device_file = 0;
 	if (!spmi) {
 		pr_err("no valid spmi pointer\n");
 		return -ENODEV;
@@ -8917,7 +9026,8 @@ static int fg_probe(struct spmi_device *spmi)
 		chip->revision[DIG_MAJOR], chip->revision[DIG_MINOR],
 		chip->revision[ANA_MAJOR], chip->revision[ANA_MINOR],
 		chip->pmic_subtype);
-
+//fake temp
+	ret_device_file = device_create_file(dev,&dev_attr_battery_temperature);
 	return rc;
 
 power_supply_unregister:
