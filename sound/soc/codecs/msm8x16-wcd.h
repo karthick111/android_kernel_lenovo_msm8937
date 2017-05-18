@@ -228,6 +228,7 @@ struct msm8916_asoc_mach_data {
 	int ext_pa;
 	int us_euro_gpio;
 	int spk_ext_pa_gpio;
+	const char *ext_spk_pa;
 	int mclk_freq;
 	int lb_mode;
 	int afe_clk_ver;
