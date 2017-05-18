@@ -77,6 +77,34 @@ static bool scm_dload_supported;
 static struct kobject dload_kobj;
 static void *dload_type_addr;
 
+static int emergent_restart;
+extern int qpnp_pon_set_emergent_restart_mode(void);
+static int emergent_restart_set(const char *val, struct kernel_param *kp)
+{
+    int ret;
+    int old_val = emergent_restart;
+
+    /* it has been set the emergent_restart mode */
+    if (emergent_restart)
+        return 0;
+
+    ret = param_set_int(val, kp);
+    if (ret)
+        return ret;
+    /* If emergent_restart is not zero or one, ignore. */
+    if (emergent_restart >> 1) {
+        emergent_restart = old_val;
+        return -EINVAL;
+    }
+
+    qpnp_pon_set_emergent_restart_mode();
+
+    return 0;
+}
+
+module_param_call(emergent_restart, emergent_restart_set, param_get_int,
+        &emergent_restart, 0644);
+
 static int dload_set(const char *val, struct kernel_param *kp);
 /* interface for exporting attributes */
 struct reset_attribute {
@@ -315,6 +343,10 @@ static void msm_restart_prepare(const char *cmd)
 			qpnp_pon_set_restart_reason(
 				PON_RESTART_REASON_RTC);
 			__raw_writel(0x77665503, restart_reason);
+		} else if (!strcmp(cmd, "ffbm")) {
+                        qpnp_pon_set_restart_reason(
+				PON_RESTART_REASON_FFBM);
+                       __raw_writel(0x77665504, restart_reason);
 		} else if (!strcmp(cmd, "dm-verity device corrupted")) {
 			qpnp_pon_set_restart_reason(
 				PON_RESTART_REASON_DMVERITY_CORRUPTED);
