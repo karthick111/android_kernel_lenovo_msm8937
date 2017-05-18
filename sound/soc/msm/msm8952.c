@@ -31,6 +31,12 @@
 #include "msm-audio-pinctrl.h"
 #include "../codecs/msm8x16-wcd.h"
 #include "../codecs/wsa881x-analog.h"
+#ifdef CONFIG_SND_SOC_TS3A227E
+#include "../codecs/ts3a227e.h"
+#endif
+#ifdef CONFIG_SND_SOC_AW87319
+#include "../codecs/aw87319.h"
+#endif
 #include <linux/regulator/consumer.h>
 #define DRV_NAME "msm8952-asoc-wcd"
 
@@ -58,6 +64,11 @@ enum btsco_rates {
 	RATE_16KHZ_ID,
 };
 
+#define SPK_PA_MODE1	1
+#define SPK_PA_MODE2    2
+#define SPK_PA_MODE3	3
+#define SPK_PA_MODE4	4
+
 static int msm8952_auxpcm_rate = 8000;
 static int msm_btsco_rate = BTSCO_RATE_8KHZ;
 static int msm_btsco_ch = 1;
@@ -71,6 +82,7 @@ static int mi2s_rx_sample_rate = SAMPLING_RATE_48KHZ;
 static int mi2s_tx_bit_format = SNDRV_PCM_FORMAT_S16_LE;
 static int mi2s_tx_bits_per_sample = 16;
 static int mi2s_tx_sample_rate = SAMPLING_RATE_48KHZ;
+static int spk_pa_mode = SPK_PA_MODE3;
 
 static atomic_t quat_mi2s_clk_ref;
 static atomic_t quin_mi2s_clk_ref;
@@ -96,10 +108,11 @@ static struct wcd_mbhc_config mbhc_cfg = {
 	.mono_stero_detection = false,
 	.swap_gnd_mic = NULL,
 	.hs_ext_micbias = false,
+	.hs_ext_rbias = false,
 	.key_code[0] = KEY_MEDIA,
-	.key_code[1] = KEY_VOICECOMMAND,
-	.key_code[2] = KEY_VOLUMEUP,
-	.key_code[3] = KEY_VOLUMEDOWN,
+	.key_code[1] = KEY_VOLUMEUP,
+	.key_code[2] = KEY_VOLUMEDOWN,
+	.key_code[3] = 0,
 	.key_code[4] = 0,
 	.key_code[5] = 0,
 	.key_code[6] = 0,
@@ -175,6 +188,8 @@ static const char *const proxy_rx_ch_text[] = {"One", "Two", "Three", "Four",
 static const char *const vi_feed_ch_text[] = {"One", "Two"};
 static char const *mi2s_rx_sample_rate_text[] = {"KHZ_48",
 					"KHZ_96", "KHZ_192"};
+static const char *const hp_switch_text[] = {"Off", "On"};
+static const char *const spk_pa_mode_text[] = {"MODE1", "MODE2","MODE3", "MODE4"};
 
 static inline int param_is_mask(int p)
 {
@@ -245,8 +260,17 @@ int is_ext_spk_gpio_support(struct platform_device *pdev,
 			struct msm8916_asoc_mach_data *pdata)
 {
 	const char *spk_ext_pa = "qcom,msm-spk-ext-pa";
+	const char *ext_pa_type = "qcom,ext-pa-type";
+	int ret;
 
 	pr_debug("%s:Enter\n", __func__);
+
+	ret = of_property_read_string(pdev->dev.of_node,
+		ext_pa_type, &pdata->ext_spk_pa);
+	if (ret) {
+		dev_info(&pdev->dev, "%s: missing %s in dt node, default as gpio type\n",
+			__func__, ext_pa_type);
+	}
 
 	pdata->spk_ext_pa_gpio = of_get_named_gpio(pdev->dev.of_node,
 				spk_ext_pa, 0);
@@ -269,15 +293,25 @@ static int enable_spk_ext_pa(struct snd_soc_codec *codec, int enable)
 	struct snd_soc_card *card = codec->component.card;
 	struct msm8916_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
 	int ret;
+	int i;
 
+#ifdef CONFIG_SND_SOC_AW87319
+	if (pdata->ext_spk_pa && !strcmp(pdata->ext_spk_pa, "aw87319")) {
+		if (enable)
+			AW87319_Audio_Speaker();
+		else
+			AW87319_Audio_OFF();
+		return 0;
+	}
+#endif
 	if (!gpio_is_valid(pdata->spk_ext_pa_gpio)) {
 		pr_err("%s: Invalid gpio: %d\n", __func__,
 			pdata->spk_ext_pa_gpio);
 		return false;
 	}
 
-	pr_debug("%s: %s external speaker PA\n", __func__,
-		enable ? "Enable" : "Disable");
+	pr_info("%s: %s external speaker PA, mode: %d\n", __func__,
+		enable ? "Enable" : "Disable", spk_pa_mode);
 
 	if (enable) {
 		ret = msm_gpioset_activate(CLIENT_WCD_INT, "ext_spk_gpio");
@@ -286,7 +320,14 @@ static int enable_spk_ext_pa(struct snd_soc_codec *codec, int enable)
 					__func__, "ext_spk_gpio");
 			return ret;
 		}
-		gpio_set_value_cansleep(pdata->spk_ext_pa_gpio, enable);
+
+		for (i = 1; i < spk_pa_mode; i++) {
+			gpio_set_value_cansleep(pdata->spk_ext_pa_gpio, 1);
+			udelay(2);
+			gpio_set_value_cansleep(pdata->spk_ext_pa_gpio, 0);
+			udelay(2);
+		}
+		gpio_set_value_cansleep(pdata->spk_ext_pa_gpio, 1);
 	} else {
 		gpio_set_value_cansleep(pdata->spk_ext_pa_gpio, enable);
 		ret = msm_gpioset_suspend(CLIENT_WCD_INT, "ext_spk_gpio");
@@ -1048,6 +1089,56 @@ static int msm_vi_feed_tx_ch_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
+static int msm_hp_switch_set(struct snd_kcontrol *kcontrol,
+		       struct snd_ctl_elem_value *ucontrol)
+{
+    pr_info("%s: mode:%ld\n", __func__, ucontrol->value.integer.value[0]);
+    karate_hp_switch_set(ucontrol->value.integer.value[0], 1);
+
+	return 0;
+}
+
+static int msm_hp_switch_get(struct snd_kcontrol *kcontrol,
+		       struct snd_ctl_elem_value *ucontrol)
+{
+    ucontrol->value.integer.value[0] = karate_hp_switch_get();     
+	return 1;
+}
+
+static int msm_spk_pa_mode_set(struct snd_kcontrol *kcontrol,
+		       struct snd_ctl_elem_value *ucontrol)
+{
+	int mode = ucontrol->value.integer.value[0];
+
+    pr_info("%s: mode:%d\n", __func__, mode);
+	switch (mode) {
+	case 0:
+		spk_pa_mode = SPK_PA_MODE1;
+		break;
+	case 1:
+		spk_pa_mode = SPK_PA_MODE2;
+		break;
+	case 2:
+		spk_pa_mode = SPK_PA_MODE3;
+		break;
+	case 3:
+		spk_pa_mode = SPK_PA_MODE4;
+		break;
+	default:
+		pr_err("%s: invalid mode %d\n", __func__, mode);
+		break;
+	}
+
+	return 0;
+}
+
+static int msm_spk_pa_mode_get(struct snd_kcontrol *kcontrol,
+		       struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.integer.value[0] = spk_pa_mode - 1;
+	return 1;
+}
+
 static const struct soc_enum msm_snd_enum[] = {
 	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(bit_format_text),
 				bit_format_text),
@@ -1063,6 +1154,10 @@ static const struct soc_enum msm_snd_enum[] = {
 				vi_feed_ch_text),
 	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(mi2s_rx_sample_rate_text),
 				mi2s_rx_sample_rate_text),
+	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(hp_switch_text), 
+				hp_switch_text),
+	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(spk_pa_mode_text),
+				spk_pa_mode_text),
 };
 
 static const struct snd_kcontrol_new msm_snd_controls[] = {
@@ -1084,6 +1179,10 @@ static const struct snd_kcontrol_new msm_snd_controls[] = {
 			msm_vi_feed_tx_ch_get, msm_vi_feed_tx_ch_put),
 	SOC_ENUM_EXT("MI2S_RX SampleRate", msm_snd_enum[6],
 			mi2s_rx_sample_rate_get, mi2s_rx_sample_rate_put),
+	SOC_ENUM_EXT("HP Switch", msm_snd_enum[7],
+            msm_hp_switch_get, msm_hp_switch_set),
+	SOC_ENUM_EXT("SPK PA Mode", msm_snd_enum[8],
+            msm_spk_pa_mode_get, msm_spk_pa_mode_set),
 };
 
 static int msm8952_mclk_event(struct snd_soc_dapm_widget *w,
@@ -1608,7 +1707,7 @@ static void *def_msm8952_wcd_mbhc_cal(void)
 		return NULL;
 
 #define S(X, Y) ((WCD_MBHC_CAL_PLUG_TYPE_PTR(msm8952_wcd_cal)->X) = (Y))
-	S(v_hs_max, 1500);
+	S(v_hs_max, 1700);
 #undef S
 #define S(X, Y) ((WCD_MBHC_CAL_BTN_DET_PTR(msm8952_wcd_cal)->X) = (Y))
 	S(num_btn, WCD_MBHC_DEF_BUTTONS);
@@ -1631,16 +1730,16 @@ static void *def_msm8952_wcd_mbhc_cal(void)
 	 * 210-290 == Button 2
 	 * 360-680 == Button 3
 	 */
-	btn_low[0] = 75;
-	btn_high[0] = 75;
-	btn_low[1] = 150;
-	btn_high[1] = 150;
-	btn_low[2] = 225;
-	btn_high[2] = 225;
+	btn_low[0] = 100;
+	btn_high[0] = 100;
+	btn_low[1] = 200;
+	btn_high[1] = 200;
+	btn_low[2] = 450;
+	btn_high[2] = 450;
 	btn_low[3] = 450;
 	btn_high[3] = 450;
-	btn_low[4] = 500;
-	btn_high[4] = 500;
+	btn_low[4] = 450;
+	btn_high[4] = 450;
 
 	return msm8952_wcd_cal;
 }
@@ -2821,6 +2920,7 @@ void msm8952_disable_mclk(struct work_struct *work)
 
 static bool msm8952_swap_gnd_mic(struct snd_soc_codec *codec)
 {
+#if 0
 	struct snd_soc_card *card = codec->component.card;
 	struct msm8916_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
 	int value, ret;
@@ -2847,7 +2947,9 @@ static bool msm8952_swap_gnd_mic(struct snd_soc_codec *codec)
 				__func__, "us_eu_gpio");
 		return false;
 	}
-
+#else
+    ts3a227e_next_switch();
+#endif
 	return true;
 }
 
@@ -3063,6 +3165,7 @@ static int msm8952_asoc_machine_probe(struct platform_device *pdev)
 	struct snd_soc_card *card;
 	struct msm8916_asoc_mach_data *pdata = NULL;
 	const char *hs_micbias_type = "qcom,msm-hs-micbias-type";
+	const char *hs_ext_rbias = "qcom,msm-hs-ext-rbias";
 	const char *ext_pa = "qcom,msm-ext-pa";
 	const char *mclk = "qcom,msm-mclk-freq";
 	const char *wsa = "asoc-wsa-codec-names";
@@ -3284,6 +3387,7 @@ parse_mclk_freq:
 	} else {
 		dev_dbg(&pdev->dev, "Headset is using internal micbias\n");
 		mbhc_cfg.hs_ext_micbias = false;
+		mbhc_cfg.hs_ext_rbias = of_property_read_bool(pdev->dev.of_node, hs_ext_rbias);
 	}
 
 	ret = of_property_read_u32(pdev->dev.of_node,
