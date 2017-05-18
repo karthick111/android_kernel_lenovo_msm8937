@@ -831,6 +831,8 @@ qpnp_pon_input_dispatch(struct qpnp_pon *pon, u32 pon_type)
 	u32 key_status;
 	u64 elapsed_us;
 
+	/* yangjq, 20130628, Add log for PM */
+	printk(KERN_INFO "%s(), pon_type=%d\n", __func__, pon_type);
 	cfg = qpnp_get_cfg(pon, pon_type);
 	if (!cfg)
 		return -EINVAL;
@@ -885,6 +887,9 @@ qpnp_pon_input_dispatch(struct qpnp_pon *pon, u32 pon_type)
 			pon->kpdpwr_last_release_time = ktime_get();
 	}
 
+	/* yangjq, 20130628, Add log for PM */
+	printk(KERN_INFO "%s(), cfg->key_code=%d,%d\n", __func__, cfg->key_code,key_status);
+
 	/* simulate press event in case release event occured
 	 * without a press event
 	 */
@@ -906,6 +911,8 @@ static irqreturn_t qpnp_kpdpwr_irq(int irq, void *_pon)
 	int rc;
 	struct qpnp_pon *pon = _pon;
 
+	/* yangjq, 20130628, Add log for PM */
+	printk(KERN_INFO "%s(), irq=%d\n", __func__, irq);
 	rc = qpnp_pon_input_dispatch(pon, PON_KPDPWR);
 	if (rc)
 		dev_err(&pon->spmi->dev, "Unable to send input event\n");
@@ -931,6 +938,7 @@ static irqreturn_t qpnp_resin_irq(int irq, void *_pon)
 
 static irqreturn_t qpnp_kpdpwr_resin_bark_irq(int irq, void *_pon)
 {
+    pr_info("kpdpwr reset bark irq is comming..\n");
 	return IRQ_HANDLED;
 }
 
@@ -2017,6 +2025,70 @@ static int read_gen2_pon_off_reason(struct qpnp_pon *pon, u16 *reason,
 	return 0;
 }
 
+/*
+set the emergent mode by press power key+vol down 7 seconds
+    S1 TIEMR: 6s
+    S2 TIMER: 1s
+    S2 CNTL : warm reset
+    S2 CNTL2: enable
+*/
+int qpnp_pon_set_emergent_restart_mode(void)
+{
+    struct qpnp_pon *pon = sys_reset_dev;
+    int rc = 0;
+
+    if (!pon) {
+        pr_err("%s:qpnp power-on driver is not initialized\n",__func__);
+        return -EPROBE_DEFER;
+    }
+
+    /* set the s1 timer 6s */
+    rc = qpnp_pon_masked_write(pon, QPNP_PON_KPDPWR_RESIN_S1_TIMER(pon),
+                QPNP_PON_S1_TIMER_MASK, 0xD);
+    if (rc)
+        dev_err(&pon->spmi->dev,
+                "Unable to write to addr=%x, rc(%d)\n",
+                QPNP_PON_KPDPWR_RESIN_S1_TIMER(pon), rc);
+
+    /* set the s2 timer 1s */
+    rc = qpnp_pon_masked_write(pon, QPNP_PON_KPDPWR_RESIN_S2_TIMER(pon),
+            QPNP_PON_S2_TIMER_MASK, 6);
+    if (rc)
+        dev_err(&pon->spmi->dev,
+                "Unable to write to addr=%x, rc(%d)\n",
+                QPNP_PON_KPDPWR_RESIN_S2_TIMER(pon), rc);
+
+    /* set the cntl is warm restart */
+    rc = qpnp_pon_masked_write(pon, QPNP_PON_KPDPWR_RESIN_S2_CNTL(pon),
+            QPNP_PON_S2_CNTL_TYPE_MASK, 1);
+    if (rc)
+        dev_err(&pon->spmi->dev,
+                "Unable to write to addr=%x, rc(%d)\n",
+                QPNP_PON_KPDPWR_RESIN_S2_CNTL(pon), rc);
+
+    /* set the cntl2 is enable*/
+    rc = qpnp_pon_masked_write(pon, QPNP_PON_KPDPWR_RESIN_S2_CNTL2(pon),
+            QPNP_PON_S2_CNTL_EN, QPNP_PON_S2_CNTL_EN);
+    if (rc)
+        dev_err(&pon->spmi->dev,
+                "Unable to write to addr=%x, rc(%d)\n",
+                QPNP_PON_KPDPWR_RESIN_S2_CNTL2(pon), rc);
+
+    pr_info("%s: set the emergent mode over\n",__func__);
+    return rc;
+}
+
+static void print_pmic_poweron_register(struct qpnp_pon *pon)
+{
+	u8 pon_data[160];
+	printk(KERN_ERR "%s: poweron registers:\n",__func__);
+
+	memset(pon_data,0,sizeof(pon_data));
+	spmi_ext_register_readl(pon->spmi->ctrl,pon->spmi->sid,0x808,&pon_data[8],8);
+
+	print_hex_dump(KERN_ERR, "poweron reg: ", DUMP_PREFIX_OFFSET, 16, 1, &pon_data[8], 8, false);
+}
+
 static int pon_twm_notifier_cb(struct notifier_block *nb,
 				unsigned long action, void *data)
 {
@@ -2427,7 +2499,7 @@ static int qpnp_pon_probe(struct spmi_device *spmi)
 	pon->store_hard_reset_reason = of_property_read_bool(
 					spmi->dev.of_node,
 					"qcom,store-hard-reset-reason");
-
+        print_pmic_poweron_register(pon);
 	qpnp_pon_debugfs_init(spmi);
 	return 0;
 }
