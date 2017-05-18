@@ -57,6 +57,7 @@ Module.symvers
 #
 !.gitignore
 !.mailmap
+!*.i
 
 #
 # Generated include files
