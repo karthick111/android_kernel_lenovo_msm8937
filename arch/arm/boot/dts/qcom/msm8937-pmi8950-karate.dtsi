@@ -1,0 +1,39 @@
+/* Copyright (c) 2016, Lenovo mobile Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+#include "msm8937-lenovo-common.dtsi"
+#include "msm8937-camera-sensor-karate.dtsi"
+#include "dsi-panel-ili7807d-yas-1080p-video.dtsi"
+
+ / {
+        model = "karate";
+	compatible ="qcom,msm8937-pmi8950-karate", "qcom,msm8937-pmi8950-qrd-sku1",
+		   "qcom,msm8937-qrd", "qcom,msm8937", "qcom,qrd";
+};
+
+&dsi_ili7807d_yas_1080p_video {
+	qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
+};
+
+&spmi_bus {
+	qcom,pmi8950@3 {
+		labibb: qpnp-labibb-regulator {
+			ibb_regulator: qcom,ibb@dc00 {
+				qcom,qpnp-ibb-init-lcd-voltage = <5000000>;
+			};
+
+			lab_regulator: qcom,lab@de00 {
+				qcom,qpnp-ibb-init-lcd-voltage = <5000000>;
+			};
+		};
+	};
+};
