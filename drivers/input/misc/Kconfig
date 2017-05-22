@@ -797,6 +797,7 @@ config INPUT_FPC_1020
 	  If unsure, say N.
 
 source "drivers/input/misc/ots_pat9125/Kconfig"
+source "drivers/input/misc/smtc/Kconfig"
 
 config SENSORS_LTR553
 	tristate "LTR553 light and proximity device driver"
