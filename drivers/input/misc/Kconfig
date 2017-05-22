@@ -789,6 +789,13 @@ config INPUT_DRV2667_HAPTICS
 	  To compile this driver as a module, choose M here: the
 	  module will be called drv260x-haptics.
 
+config INPUT_FPC_1020
+	tristate "fpc 1020 fingerprint sensor"
+	default n
+	help
+	  Say Y here if you wich to include support for fingerprint sensor.
+	  If unsure, say N.
+
 source "drivers/input/misc/ots_pat9125/Kconfig"
 
 config SENSORS_LTR553
