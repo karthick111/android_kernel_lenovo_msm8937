@@ -832,6 +832,11 @@ config HARDEN_BRANCH_PREDICTOR
 
 	  If unsure, say Y.
 
+config LENOVO_ID
+	bool "Configure Lenovo board ID "
+	help
+          Lenovo ID is used to indicate different hardware board.
+
 menuconfig ARMV8_DEPRECATED
 	bool "Emulate deprecated/obsolete ARMv8 instructions"
 	depends on COMPAT
