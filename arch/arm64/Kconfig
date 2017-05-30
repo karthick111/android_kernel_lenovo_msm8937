@@ -801,6 +801,11 @@ config FORCE_MAX_ZONEORDER
 	default "14" if (ARM64_64K_PAGES && TRANSPARENT_HUGEPAGE)
 	default "11"
 
+config LENOVO_ID
+	bool "Configure Lenovo board ID "
+	help
+          Lenovo ID is used to indicate different hardware board.
+
 menuconfig ARMV8_DEPRECATED
 	bool "Emulate deprecated/obsolete ARMv8 instructions"
 	depends on COMPAT
