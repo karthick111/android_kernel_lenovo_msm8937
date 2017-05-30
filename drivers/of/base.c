@@ -1874,6 +1874,16 @@ static void of_alias_add(struct alias_prop *ap, struct device_node *np,
 		 ap->alias, ap->stem, ap->id, of_node_full_name(np));
 }
 
+#ifdef     CONFIG_LENOVO_ID
+int lenovo_id;
+int  of_get_lenovo_id(void )
+{
+    printk("msm_get_platform_lenovo_id=============base=======of_get_lenovo_id  ---%d",lenovo_id);
+     return lenovo_id;
+}
+EXPORT_SYMBOL(of_get_lenovo_id);
+#endif
+
 /**
  * of_alias_scan - Scan all properties of 'aliases' node
  *
@@ -1902,6 +1912,10 @@ void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align))
 			name = of_get_property(of_aliases, "stdout", NULL);
 		if (name)
 			of_stdout = of_find_node_opts_by_path(name, &of_stdout_options);
+#ifdef CONFIG_LENOVO_ID
+                of_property_read_u32(of_chosen,"lenovoid",&lenovo_id);
+                printk("of_alias_scan-----lenovo_id == ---%d",lenovo_id);
+#endif
 	}
 
 	if (!of_aliases)
