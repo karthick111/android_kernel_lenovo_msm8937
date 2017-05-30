@@ -1886,6 +1886,11 @@ config ARM_FLUSH_CONSOLE_ON_RESTART
 
 endmenu
 
+config LENOVO_ID
+        bool "Configure Lenovo board ID "
+        help
+          Lenovo ID is used to indicate different hardware board.
+
 menu "Boot options"
 
 config USE_OF
