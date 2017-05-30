@@ -878,6 +878,43 @@ msm_get_platform_subtype(struct device *dev,
 	}
 }
 
+#ifdef CONFIG_LENOVO_ID
+#include "lenovo_id.h"
+static const char * get_hardware_type_by_lenovoid(void)
+{
+     int lenovoid=of_get_lenovo_id();
+     struct Board_Info *board_pointer = board_info_arry;
+     if ((0<lenovoid) && (lenovoid <HW_ID_END) )
+    {
+        return board_pointer[lenovoid-1].phname;
+    }
+     else
+     {
+       printk("get_hardware_type_by_lenovoid====NULL");
+       return "ERROR";
+     }
+}
+
+static ssize_t
+msm_get_platform_hardware_tpye(struct device *dev,
+			struct device_attribute *attr,
+			char *buf)
+{
+     printk("msm_get_platform_hardware_tpye");
+     return snprintf(buf, PAGE_SIZE, "%-.32s\n",get_hardware_type_by_lenovoid());
+}
+
+static ssize_t
+msm_get_platform_lenovo_id(struct device *dev,
+			struct device_attribute *attr,
+			char *buf)
+{
+      int   lenovo_id=   of_get_lenovo_id();
+      printk("msm_get_platform_lenovo_id=======of_get_lenovo_id  ---%d",lenovo_id);
+      return snprintf(buf, PAGE_SIZE, "%u\n",lenovo_id);
+}
+#endif //CONFIG_LENOVO_ID
+
 static ssize_t
 msm_get_platform_subtype_id(struct device *dev,
 			struct device_attribute *attr,
@@ -1184,6 +1221,16 @@ static struct device_attribute msm_soc_attr_platform_subtype =
 	__ATTR(platform_subtype, S_IRUGO,
 			msm_get_platform_subtype, NULL);
 
+#ifdef CONFIG_LENOVO_ID
+static struct device_attribute msm_soc_attr_platform_lenovo_id =
+	__ATTR(platform_lenovo_id, S_IRUGO,
+			msm_get_platform_lenovo_id, NULL);
+
+static struct device_attribute msm_soc_attr_platform_lenovo_hardware_type =
+	__ATTR(platform_lenovo_hardware_tpye, S_IRUGO,
+			msm_get_platform_hardware_tpye, NULL);
+#endif
+
 /* Platform Subtype String is being deprecated. Use Platform
  * Subtype ID instead.
  */
@@ -1351,6 +1398,13 @@ static void __init populate_soc_sysfs_files(struct device *msm_soc_device)
 	device_create_file(msm_soc_device, &image_crm_version);
 	device_create_file(msm_soc_device, &select_image);
 	device_create_file(msm_soc_device, &images);
+
+#ifdef CONFIG_LENOVO_ID
+	device_create_file(msm_soc_device,
+					&msm_soc_attr_platform_lenovo_id);
+	device_create_file(msm_soc_device,
+					&msm_soc_attr_platform_lenovo_hardware_type);
+#endif
 
 	switch (socinfo_format) {
 	case SOCINFO_VERSION(0, 12):
