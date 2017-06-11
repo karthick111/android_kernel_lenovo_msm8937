@@ -1,0 +1,68 @@
+source "drivers/media/platform/msm/vidc/Kconfig"
+
+#
+# MSM camera configuration
+#
+
+comment "Qualcomm MSM Camera And Video"
+
+menuconfig MSM_CAMERA
+	bool "Qualcomm MSM camera and video capture support"
+	depends on ARCH_MSM && VIDEO_V4L2 && I2C
+	---help---
+	  Say Y here to enable selecting the video adapters for
+	  Qualcomm msm camera and video capture drivers. enabling this
+	  adds support for the camera driver stack including sensor, isp
+	  and postprocessing drivers for legacy chipsets.
+
+config MSM_CAMERA_DEBUG
+	bool "Qualcomm MSM camera debugging with printk"
+	depends on MSM_CAMERA
+	default n
+	---help---
+	  Enable printk() debug for msm camera
+
+menuconfig MSMB_CAMERA
+	bool "Qualcomm MSM camera and video capture 2.0 support"
+	depends on ARCH_MSM && VIDEO_V4L2 && I2C
+	---help---
+	  Say Y here to enable selecting the video adapters for
+	  Qualcomm msm camera and video capture 2.0, enabling this
+	  adds support for the camera driver stack including sensor, isp
+	  and postprocessing drivers.
+
+menuconfig LENOVO_DIR_CAMERA
+	bool "Lenovo MSM camera directory support"
+	depends on MSMB_CAMERA
+	---help---
+	  Say Y here to enable selecting the vendor lenovo camera driver
+	  directory to compile into the kernel.
+
+menuconfig QUALCOMM_DIR_CAMERA
+	bool "Qualcomm MSM camera directory support"
+	depends on MSMB_CAMERA
+	---help---
+	  Say Y here to enable selecting the vendor lenovo camera driver
+	  directory to compile into the kernel.
+
+config CAMERA_WT_FACTORY_SUPPORTED
+	bool "Lenovo Wingtech factory supported about camera"
+	depends on MSMB_CAMERA
+	---help---
+	  Enable to support the wingtech factory about camera
+
+config MSMB_CAMERA_DEBUG
+	bool "Qualcomm MSM camera 2.0 debugging with printk"
+	depends on MSMB_CAMERA
+	---help---
+	  Enable printk() debug for msm camera 2.0
+
+if LENOVO_DIR_CAMERA
+source "../vendor/lenovo/camera/camera-driver/Kconfig"
+endif # LENOVO_DIR_CAMERA
+if QUALCOMM_DIR_CAMERA
+source "drivers/media/platform/msm/camera_v2/Kconfig"
+endif # QUALCOMM_DIR_CAMERA
+source "drivers/media/platform/msm/dvb/Kconfig"
+source "drivers/media/platform/msm/broadcast/Kconfig"
+source "drivers/media/platform/msm/sde/Kconfig"
