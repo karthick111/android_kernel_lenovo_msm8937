@@ -534,7 +534,6 @@
 			qcom,en-phase-stag;
 			qcom,ibb-pwrup-dly = <8>;
 			qcom,led-strings-list = [00 01];
-			qcom,en-ext-pfet-sc-pro;
 		};
 
 		flash_led: qcom,leds@d300 {
@@ -623,6 +622,7 @@
 			interrupts = <0x3 0xc0 0x0>,
 					<0x3 0xc0 0x1>;
 			interrupt-names = "sc-irq", "play-irq";
+			vcc_pon-supply = <&pon_perph_reg>;
 			qcom,play-mode = "direct";
 			qcom,wave-play-rate-us = <5263>;
 			qcom,actuator-type = "erm";

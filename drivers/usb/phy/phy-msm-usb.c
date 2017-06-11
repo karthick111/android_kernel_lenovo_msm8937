@@ -2367,7 +2367,6 @@ static bool msm_chg_check_dcd(struct msm_otg *motg)
 	struct usb_phy *phy = &motg->phy;
 	u32 line_state;
 	bool ret = false;
-
 	switch (motg->pdata->phy_type) {
 	case SNPS_PICO_PHY:
 	case SNPS_FEMTO_PHY:
@@ -2786,9 +2785,8 @@ static void msm_chg_check_dcd_flchg(struct msm_otg *motg)
 	pm_runtime_get_sync(otg->phy->dev);
 	msm_chg_block_on(motg);
 	msm_chg_enable_dcd(motg);
-	usleep_range(10000, 12000);
+	usleep_range(50000, 60000);
 	check_dcd = msm_chg_check_dcd(motg);
-
 	if (!check_dcd) {
 		if (floated_chg == FLOATING_AS_DCP)
 			motg->chg_type = USB_DCP_CHARGER;

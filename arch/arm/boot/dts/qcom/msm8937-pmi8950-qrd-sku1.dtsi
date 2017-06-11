@@ -18,22 +18,48 @@
 
 &spmi_bus {
 	qcom,pmi8950@2 {
-		qcom,leds@a100 {
-			status = "okay";
-			qcom,led_mpp_2 {
-				label = "mpp";
-				linux,name = "green";
-				linux,default-trigger = "none";
-				qcom,default-state = "off";
-				qcom,max-current = <5>;
-				qcom,current-setting = <5>;
-				qcom,id = <6>;
-				qcom,mode = "manual";
-				qcom,source-sel = <1>;
-				qcom,mode-ctrl = <0x60>;
-			};
-		};
-	};
+                qcom,leds@a100 {
+                        compatible = "qcom,leds-qpnp";
+                        reg = <0xa100 0x100>;
+                        status = "okay";
+                        qcom,led_mpp_2 {
+                                label = "mpp";
+                                linux,name = "green";
+                                linux,default-trigger = "none";
+                                qcom,default-state = "off";
+                                qcom,max-current = <5>;
+                                qcom,current-setting = <5>;
+                                qcom,id = <6>;
+                                qcom,mode = "pwm";
+                                qcom,pwm-channel = <0>;
+                                pwms = <&pmi8950_pwm 0 0>;
+                                pwm-names="green";
+                                qcom,source-sel = <8>;
+                                qcom,pwm-us=<1000>;
+                                qcom,mode-ctrl = <0x60>;
+                        };
+                };
+        };
+
+        qcom,pmi8950@3 {
+                pmi8950_pwm: pwm@b000{
+                        status = "okay";
+                        compatible = "qcom,qpnp-pwm";
+                        reg = <0xb000 0x100>;
+                        reg-names = "qpnp-lpg-channel-base";
+                        qcom,channel-id = <0>;
+                        qcom,supported-sizes = <6>,<9>;
+                        qcom,period = <1000>;
+                        qcom,mode-select=<0>;
+                        qcom,dtest-output = <1>;
+                        qcom,lpg-dtest-line = <1>;
+                        #pwm-cells = <2>;
+                        qcom,pwm{
+                                qcom,duty = <1000000>;
+                                label = "pwm";
+                        };
+                };
+        };
 };
 
 &soc {

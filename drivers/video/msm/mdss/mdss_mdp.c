@@ -1372,8 +1372,10 @@ static int mdss_mdp_debug_init(struct platform_device *pdev,
 	mdss_debug_register_dump_range(pdev, dbg_blk, "qcom,regs-dump-mdp",
 		"qcom,regs-dump-names-mdp");
 
-	mdss_debug_register_io("vbif", &mdata->vbif_io, NULL);
-	mdss_debug_register_io("vbif_nrt", &mdata->vbif_nrt_io, NULL);
+	if (mdata->vbif_io.base)
+		mdss_debug_register_io("vbif", &mdata->vbif_io, NULL);
+	if (mdata->vbif_nrt_io.base)
+		mdss_debug_register_io("vbif_nrt", &mdata->vbif_nrt_io, NULL);
 
 	return 0;
 }
@@ -2080,7 +2082,7 @@ static ssize_t mdss_mdp_store_max_limit_bw(struct device *dev,
 	struct mdss_data_type *mdata = dev_get_drvdata(dev);
 	u32 data = 0;
 
-	if (1 != sscanf(buf, "%d", &data)) {
+	if (kstrtouint(buf, 0, &data)) {
 		pr_info("Not able scan to bw_mode_bitmap\n");
 	} else {
 		mdata->bw_mode_bitmap = data;

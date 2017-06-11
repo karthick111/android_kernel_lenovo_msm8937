@@ -652,6 +652,10 @@ void kgsl_device_snapshot(struct kgsl_device *device,
 	 *
 	 */
 	kgsl_schedule_work(&snapshot->work);
+
+	/* Qualcomm temp patch to select gpu snapshot start */
+	BUG();
+	/* Qualcomm temp patch to select gpu snapshot end */
 }
 EXPORT_SYMBOL(kgsl_device_snapshot);
 
