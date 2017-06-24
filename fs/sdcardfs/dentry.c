@@ -1,21 +1,19 @@
 /*
  * fs/sdcardfs/dentry.c
  *
- * Copyright (c) 2013 Samsung Electronics Co. Ltd
- *   Authors: Daeho Jeong, Woojoong Lee, Seunghwan Hyun,
- *               Sunghwan Yun, Sungjong Seo
+ * Copyright (c) 2015 Lenovo Co. Ltd
+ *   Authors: liaohs , jixj
+                
+* This program has been developed as a stackable file system based on
+ * the WrapFS which written by 
+ * Copyright (c) 1998-2014 Erez Zadok
+ * Copyright (c) 2009	   Shrikar Archak
+ * Copyright (c) 2003-2014 Stony Brook University
+ * Copyright (c) 2003-2014 The Research Foundation of SUNY
  *
- * This program has been developed as a stackable file system based on
- * the WrapFS which written by
- *
- * Copyright (c) 1998-2011 Erez Zadok
- * Copyright (c) 2009     Shrikar Archak
- * Copyright (c) 2003-2011 Stony Brook University
- * Copyright (c) 2003-2011 The Research Foundation of SUNY
- *
- * This file is dual licensed.  It may be redistributed and/or modified
- * under the terms of the Apache 2.0 License OR version 2 of the GNU
- * General Public License.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
  */
 
 #include "sdcardfs.h"
@@ -45,7 +43,7 @@ static int sdcardfs_d_revalidate(struct dentry *dentry, unsigned int flags)
 	}
 	spin_unlock(&dentry->d_lock);
 
-	/* check uninitialized obb_dentry and
+	/* check uninitialized obb_dentry and  
 	 * whether the base obbpath has been changed or not */
 	if (is_obbpath_invalid(dentry)) {
 		d_drop(dentry);
@@ -74,12 +72,32 @@ static int sdcardfs_d_revalidate(struct dentry *dentry, unsigned int flags)
 		goto out;
 	}
 
+/* ######## ATTENTION ########
+~~~ spin_lock(&lower_dentry->d_lock);  //here call spin_lock , will cause follow DEADLOCK ~~
+
+4>[   38.406030]-(1)[829:zygote] (&(&dentry->d_lock)->rlock){+.+...}, at: [<c026a6c4>] sdcardfs_d_revalidate+0x1b8/0x258
+<4>[   38.406057]-(1)[829:zygote]
+<4>[   38.406062]-(1)[829:zygote]but task is already holding lock:
+<4>[   38.406069]-(1)[829:zygote] (&(&dentry->d_lock)->rlock){+.+...}, at: [<c026a6bc>] sdcardfs_d_revalidate+0x1b0/0x258
+<4>[   38.406094]-(1)[829:zygote]
+<4>[   38.406098]-(1)[829:zygote]other info that might help us debug this:
+<4>[   38.406107]-(1)[829:zygote] Possible unsafe locking scenario:
+<4>[   38.406113]-(1)[829:zygote]
+<4>[   38.406119]-(1)[829:zygote]       CPU0
+<4>[   38.406125]-(1)[829:zygote]       ----
+<4>[   38.406132]-(1)[829:zygote]  lock(&(&dentry->d_lock)->rlock);
+<4>[   38.406143]-(1)[829:zygote]  lock(&(&dentry->d_lock)->rlock);
+<4>[   38.406153]-(1)[829:zygote]
+<4>[   38.406158]-(1)[829:zygote] *** DEADLOCK ***
+<4>[   38.406163]-(1)[829:zygote]
+<4>[   38.406169]-(1)[829:zygote] May be due to missing lock nesting notation
+ */
 	if (dentry < lower_dentry) {
 		spin_lock(&dentry->d_lock);
-		spin_lock(&lower_dentry->d_lock);
+		spin_lock_nested(&lower_dentry->d_lock, 1);
 	} else {
 		spin_lock(&lower_dentry->d_lock);
-		spin_lock(&dentry->d_lock);
+		spin_lock_nested(&dentry->d_lock, 1);
 	}
 
 	if (dentry->d_name.len != lower_dentry->d_name.len) {
@@ -118,10 +136,10 @@ static void sdcardfs_d_release(struct dentry *dentry)
 	return;
 }
 
-static int sdcardfs_hash_ci(const struct dentry *dentry,
+static int sdcardfs_hash_ci(const struct dentry *dentry, 
 				struct qstr *qstr)
 {
-	/*
+	/* 
 	 * This function is copy of vfat_hashi.
 	 * FIXME Should we support national language?
 	 *       Refer to vfat_hashi()
@@ -133,7 +151,7 @@ static int sdcardfs_hash_ci(const struct dentry *dentry,
 
 	name = qstr->name;
 	//len = vfat_striptail_len(qstr);
-	len = qstr->len;
+	len = qstr->len; 
 
 	hash = init_name_hash();
 	while (len--)
@@ -147,12 +165,12 @@ static int sdcardfs_hash_ci(const struct dentry *dentry,
 /*
  * Case insensitive compare of two vfat names.
  */
-static int sdcardfs_cmp_ci(const struct dentry *parent,
-		const struct dentry *dentry,
+static int sdcardfs_cmp_ci(const struct dentry *parent, 
+		const struct dentry *dentry, 
 		unsigned int len, const char *str, const struct qstr *name)
 {
 	/* This function is copy of vfat_cmpi */
-	// FIXME Should we support national language?
+	// FIXME Should we support national language? 
 	//struct nls_table *t = MSDOS_SB(parent->d_sb)->nls_io;
 	//unsigned int alen, blen;
 
@@ -167,7 +185,7 @@ static int sdcardfs_cmp_ci(const struct dentry *parent,
 	*/
 	if (name->len == len) {
 		if (strncasecmp(name->name, str, len) == 0)
-			return 0;
+			return 0; 
 	}
 	return 1;
 }
@@ -175,8 +193,7 @@ static int sdcardfs_cmp_ci(const struct dentry *parent,
 const struct dentry_operations sdcardfs_ci_dops = {
 	.d_revalidate	= sdcardfs_d_revalidate,
 	.d_release	= sdcardfs_d_release,
-	.d_hash 	= sdcardfs_hash_ci,
+	.d_hash 	= sdcardfs_hash_ci, 
 	.d_compare	= sdcardfs_cmp_ci,
-	.d_canonical_path = sdcardfs_get_real_lower,
 };
 
