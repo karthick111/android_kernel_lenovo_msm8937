@@ -1897,9 +1897,10 @@ static inline void msm_isp_update_error_info(struct vfe_device *vfe_dev,
 	vfe_dev->error_info.error_count++;
 }
 
-static void msm_isp_process_overflow_irq(
+void msm_isp_process_overflow_irq(
 	struct vfe_device *vfe_dev,
-	uint32_t *irq_status0, uint32_t *irq_status1)
+	uint32_t *irq_status0, uint32_t *irq_status1,
+	uint32_t force_overflow)
 {
 	uint32_t overflow_mask;
 
@@ -1922,11 +1923,11 @@ static void msm_isp_process_overflow_irq(
 	/*Check if any overflow bit is set*/
 	vfe_dev->hw_info->vfe_ops.core_ops.
 		get_overflow_mask(&overflow_mask);
-	overflow_mask &= *irq_status1;
+	if (!force_overflow)
+		overflow_mask &= *irq_status1;
 
 	if (overflow_mask) {
 		struct msm_isp_event_data error_event;
-		struct msm_vfe_axi_halt_cmd halt_cmd;
 
 		if (vfe_dev->reset_pending == 1) {
 			pr_err("%s:%d failed: overflow %x during reset\n",
@@ -1936,16 +1937,49 @@ static void msm_isp_process_overflow_irq(
 			return;
 		}
 
-		halt_cmd.overflow_detected = 1;
-		halt_cmd.stop_camif = 1;
-		halt_cmd.blocking_halt = 0;
+		ISP_DBG("%s: VFE%d Bus overflow detected: start recovery!\n",
+			__func__, vfe_dev->pdev->id);
 
-		msm_isp_axi_halt(vfe_dev, &halt_cmd);
+		/* maks off irq for current vfe */
+		atomic_cmpxchg(&vfe_dev->error_info.overflow_state,
+			NO_OVERFLOW, OVERFLOW_DETECTED);
+		vfe_dev->recovery_irq0_mask = vfe_dev->irq0_mask;
+		vfe_dev->recovery_irq1_mask = vfe_dev->irq1_mask;
 
-		/*Update overflow state*/
+		vfe_dev->hw_info->vfe_ops.core_ops.
+			set_halt_restart_mask(vfe_dev);
+
+		/* mask off other vfe if dual vfe is used */
+		if (vfe_dev->is_split) {
+			uint32_t other_vfe_id;
+			struct vfe_device *other_vfe_dev;
+
+			other_vfe_id = (vfe_dev->pdev->id == ISP_VFE0) ?
+				ISP_VFE1 : ISP_VFE0;
+			other_vfe_dev = vfe_dev->common_data->
+				dual_vfe_res->vfe_dev[other_vfe_id];
+			if (other_vfe_dev) {
+			  other_vfe_dev->recovery_irq0_mask =
+				  other_vfe_dev->irq0_mask;
+			  other_vfe_dev->recovery_irq1_mask =
+				  other_vfe_dev->irq1_mask;
+			}
+
+			atomic_cmpxchg(&(vfe_dev->common_data->dual_vfe_res->
+				vfe_dev[other_vfe_id]->
+				error_info.overflow_state),
+				NO_OVERFLOW, OVERFLOW_DETECTED);
+
+			vfe_dev->hw_info->vfe_ops.core_ops.
+				set_halt_restart_mask(vfe_dev->common_data->
+				dual_vfe_res->vfe_dev[other_vfe_id]);
+		}
+
+		/* reset irq status so skip further process */
 		*irq_status0 = 0;
 		*irq_status1 = 0;
 
+		/* send overflow event as needed */
 		if (atomic_read(&vfe_dev->error_info.overflow_state)
 			!= HALT_ENFORCED) {
 			memset(&error_event, 0, sizeof(error_event));
@@ -2015,7 +2049,7 @@ irqreturn_t msm_isp_process_irq(int irq_num, void *data)
 	ping_pong_status = vfe_dev->hw_info->vfe_ops.axi_ops.
 		get_pingpong_status(vfe_dev);
 	msm_isp_process_overflow_irq(vfe_dev,
-		&irq_status0, &irq_status1);
+		&irq_status0, &irq_status1, 0);
 
 	vfe_dev->hw_info->vfe_ops.core_ops.
 		get_error_mask(&error_mask0, &error_mask1);
@@ -2154,10 +2188,15 @@ int msm_isp_open_node(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 
 	ISP_DBG("%s open_cnt %u\n", __func__, vfe_dev->vfe_open_cnt);
 
-	if (vfe_dev->common_data == NULL) {
-		pr_err("%s: Error in probe. No common_data\n", __func__);
+	if (vfe_dev->common_data == NULL ||
+		vfe_dev->common_data->dual_vfe_res == NULL) {
+		pr_err("%s: Error in probe. No common_data or dual vfe res\n",
+			__func__);
 		return -EINVAL;
 	}
+
+	if (vfe_dev->pdev->id == ISP_VFE0)
+		vfe_dev->common_data->dual_vfe_res->epoch_sync_mask = 0;
 
 	mutex_lock(&vfe_dev->realtime_mutex);
 	mutex_lock(&vfe_dev->core_mutex);
@@ -2342,5 +2381,62 @@ void msm_isp_save_framedrop_values(struct vfe_device *vfe_dev,
 		stream_info->activated_framedrop_period  =
 			stream_info->requested_framedrop_period;
 		spin_unlock_irqrestore(&stream_info->lock, flags);
+	}
+}
+
+void msm_isp_start_error_recovery(struct vfe_device *vfe_dev)
+{
+	struct msm_isp_event_data error_event;
+
+	/*Mask out all other irqs if recovery is started*/
+	if (atomic_read(&vfe_dev->error_info.overflow_state) != NO_OVERFLOW) {
+		pr_err("%s: Error Recovery in processing !!!\n",
+				__func__);
+		return;
+	}
+
+	if (vfe_dev->reset_pending == 1) {
+		pr_err("%s:%d failed: recovery during reset\n",
+			__func__, __LINE__);
+		return;
+	}
+
+	/* maks off irq for current vfe */
+	atomic_cmpxchg(&vfe_dev->error_info.overflow_state,
+		NO_OVERFLOW, OVERFLOW_DETECTED);
+	vfe_dev->recovery_irq0_mask = vfe_dev->irq0_mask;
+	vfe_dev->recovery_irq0_mask = vfe_dev->irq1_mask;
+	vfe_dev->hw_info->vfe_ops.core_ops.
+			set_halt_restart_mask(vfe_dev);
+
+	/* mask off other vfe if dual vfe is used */
+	if (vfe_dev->is_split) {
+		uint32_t other_vfe_id;
+		struct vfe_device *other_vfe_dev;
+
+		other_vfe_id = (vfe_dev->pdev->id == ISP_VFE0) ?
+			ISP_VFE1 : ISP_VFE0;
+		atomic_cmpxchg(&(vfe_dev->common_data->dual_vfe_res->
+			vfe_dev[other_vfe_id]->
+			error_info.overflow_state),
+			NO_OVERFLOW, OVERFLOW_DETECTED);
+		other_vfe_dev = vfe_dev->common_data->
+			dual_vfe_res->vfe_dev[other_vfe_id];
+		other_vfe_dev->recovery_irq0_mask = other_vfe_dev->irq0_mask;
+		other_vfe_dev->recovery_irq0_mask = other_vfe_dev->irq1_mask;
+		vfe_dev->hw_info->vfe_ops.core_ops.
+			set_halt_restart_mask(vfe_dev->common_data->
+			dual_vfe_res->vfe_dev[other_vfe_id]);
+	}
+
+	if (atomic_read(&vfe_dev->error_info.overflow_state)
+		!= HALT_ENFORCED) {
+		memset(&error_event, 0, sizeof(error_event));
+		error_event.frame_id =
+			vfe_dev->axi_data.src_info[VFE_PIX_0].frame_id;
+		error_event.u.error_info.err_type =
+			ISP_ERROR_BUS_OVERFLOW;
+		msm_isp_send_event(vfe_dev,
+			ISP_EVENT_ERROR, &error_event);
 	}
 }

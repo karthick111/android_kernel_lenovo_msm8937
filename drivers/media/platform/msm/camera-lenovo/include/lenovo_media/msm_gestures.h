@@ -3,7 +3,7 @@
 
 #include <linux/types.h>
 #include <linux/ioctl.h>
-#include "msm_camera.h"
+#include "./msm_camera.h"
 
 #define MSM_GES_IOCTL_CTRL_COMMAND \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 20, struct v4l2_control)
