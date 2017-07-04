@@ -1,0 +1,63 @@
+/*
+ * Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+&i2c_8 {
+	status = "ok";
+	semtech@3e {
+		compatible = "semtech,cap";
+		reg = <0x28>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <17 0x2002>;
+		vdd-supply = <&pm8937_l5>;
+		vcc_i2c-supply = <&pm8937_l5>;
+		/* pins used by cap sensor */
+		pinctrl-names = "cap_active", "cap_suspend";
+		pinctrl-0 = <&cap_irq_active>;
+		pinctrl-1 = <&cap_irq_suspend>;
+		semtech,irq-gpio = <&tlmm 17 0x1>;
+		semtech,init-reg = <0x03 0x70>,
+			<0x04 0x00>,
+			<0x11 0x00>,
+			<0x12 0x00>;
+	};
+};
+
+&tlmm {
+	cap_irq {
+		cap_irq_active: active {
+			mux {
+				pins = "gpio17";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio17";
+				drive-strength = <2>;
+				input-enable;
+				bias-pull-up;
+			};
+		};
+		cap_irq_suspend: suspend {
+			mux {
+				pins = "gpio17";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio17";
+				driver-strength = <2>;
+				bias-pull-up;
+			};
+		};
+	};
+};

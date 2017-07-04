@@ -1,0 +1,337 @@
+
+/*
+ * Copyright (c) 2015, The lenovo mobile Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+
+#include "msm8937.dtsi"
+#include "msm8937-pmi8950-qrd-sku1.dtsi"
+
+/ {
+	aliases {
+		fpc1020 = &fpc1020;
+	};
+};
+
+&soc {
+	sound {
+		qcom,model = "msm8952-sku1-snd-card";
+		qcom,msm-mbhc-hphl-swh = <0x1>;
+		qcom,msm-mbhc-gnd-swh = <0x1>;
+		qcom,msm-hs-micbias-type = "internal";
+		qcom,msm-spk-ext-pa = <&tlmm 124 0>;
+		qcom,msm-hs-ext-rbias;
+		qcom,msm-gpios =
+			"pri_i2s",
+			"ext_spk_gpio";
+		qcom,pinctrl-names =
+			"all_off",
+			"pri_i2s_act",
+			"ext_spk_gpio_act",
+			"pri_i2s_ext_spk_act";
+		pinctrl-names =
+			"all_off",
+			"pri_i2s_act",
+			"ext_spk_gpio_act",
+			"pri_i2s_ext_spk_act";
+		pinctrl-0 = <&cdc_pdm_lines_sus
+				&cdc_pdm_lines_2_sus &ext_spk_gpio_sus>;
+		pinctrl-1 = <&cdc_pdm_lines_act
+				&cdc_pdm_lines_2_act &ext_spk_gpio_sus>;
+		pinctrl-2 = <&cdc_pdm_lines_sus
+				&cdc_pdm_lines_2_sus &ext_spk_gpio_act>;
+		pinctrl-3 = <&cdc_pdm_lines_act
+				&cdc_pdm_lines_2_act &ext_spk_gpio_act>;
+		qcom,audio-routing =
+			"RX_BIAS", "MCLK",
+			"SPK_RX_BIAS", "MCLK",
+			"INT_LDO_H", "MCLK",
+			"MIC BIAS External", "Handset Mic",
+			"MIC BIAS Internal2", "Headset Mic",
+			"MIC BIAS External", "Secondary Mic",
+			"AMIC1", "MIC BIAS External",
+			"AMIC2", "MIC BIAS Internal2",
+			"AMIC3", "MIC BIAS External";
+	};
+
+	fpc1020: fpc1020 {
+		status = "ok";
+		compatible = "fpc,fpc1020";
+		input-device-name = "fpc1020";
+		interrupt-parent = <&tlmm>;
+		interrupts = <9 0x0>;
+		fpc,reset-gpio  = <&tlmm 8 0x2>;
+		fpc,irq-gpio    = <&tlmm 9 0x1>;
+		pinctrl-names = "pmx_fp_active", "pmx_fp_suspend";
+		pinctrl-0 = <&fpc_reset_active &fpc_irq_active>;
+		pinctrl-1 = <&fpc_reset_suspend &fpc_irq_suspend>;
+
+		vcc_spi-supply  = <&pm8937_l5>;
+		vdd_ana-supply  = <&pm8937_l5>;
+		vdd_io-supply   = <&pm8937_l5>;
+		/* fpc,enable-on-boot; */
+		clock-names = "iface_clk", "core_clk";
+		clocks = <&clock_gcc clk_gcc_blsp2_ahb_clk>,
+			<&clock_gcc clk_gcc_blsp2_qup2_spi_apps_clk>;
+	};
+};
+
+&tlmm {
+	ext-spk-gpio {
+		ext_spk_gpio_act: lines_on {
+			mux {
+				pins = "gpio124";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio124";
+				drive-strength = <8>;
+				output-high;
+				bias-disable;
+			};
+		};
+
+		ext_spk_gpio_sus: lines_off {
+			mux {
+				pins = "gpio124";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio124";
+				drive-strength = <2>;
+				output-low;
+				bias-disable;
+			};
+		};
+	};
+
+	pmx_sgm3710 {
+		sgm3710_act: sgm3710_act {
+			mux {
+				pins = "gpio129", "gpio132";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio129", "gpio132";
+				drive-strength = <8>;
+				output-high;
+				bias-disable;
+			};
+		};
+
+		sgm3710_sus: sgm3710_sus {
+			mux {
+				pins = "gpio129", "gpio132";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio129", "gpio132";
+				drive-strength = <2>;
+				output-low;
+				bias-disable;
+			};
+		};
+	};
+};
+
+&i2c_2 {
+	ts3a227e: ts3a227e@3b {
+		compatible = "ti,ts3a227e";
+		reg = <0x3b>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <25 0x0>;
+		ti,fm_support;
+		pinctrl-names = "pmx_hp_switch_on",
+			"pmx_hp_switch_off";
+		pinctrl-0 = <&sgm3710_act>;
+		pinctrl-1 = <&sgm3710_sus>;
+	};
+};
+
+&i2c_3 {
+	status = "ok";
+	focaltech@38 {
+		compatible = "focaltech,fts";
+		reg = <0x38>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <65 0x2002>;
+		vdd-supply = <&pm8937_l10>;
+		vcc_i2c-supply = <&pm8937_l5>;
+		/* pins used by touchscreen */
+		pinctrl-names = "pmx_ts_active",
+				"pmx_ts_suspend",
+				"pmx_ts_release";
+		pinctrl-0 = <&ts_int_active &ts_reset_active>;
+		pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
+		pinctrl-2 = <&ts_release>;
+		focaltech,name = "ft5346i";
+		focaltech,family-id = <0x54>;
+		focaltech,reset-gpio = <&tlmm 64 0x0>;
+		focaltech,irq-gpio = <&tlmm 65 0x1>;
+		focaltech,display-coords = <0 0 1080 1920>;
+		focaltech,panel-coords = <0 0 1080 1920>;
+		focaltech,button-map= <580 172 158>; /* APP_SWITCH HOME BACK */
+		focaltech,button-y-coord = <2040>;
+		focaltech,button-x-coords = <120 500 900>;
+		focaltech,no-force-update;
+		focaltech,i2c-pull-up;
+		focaltech,group-id = <1>;
+		focaltech,hard-reset-delay-ms = <20>;
+		focaltech,soft-reset-delay-ms = <200>;
+		focaltech,num-max-touches = <10>;
+		focaltech,fw-delay-aa-ms = <2>;
+		focaltech,fw-delay-55-ms = <2>;
+		focaltech,fw-upgrade-id1 = <0x54>;
+		focaltech,fw-upgrade-id2 = <0x2c>;
+		focaltech,fw-delay-readid-ms = <20>;
+		focaltech,fw-delay-era-flsh-ms = <2000>;
+		focaltech,fw-auto-cal;
+		focaltech,fw-auto-upgrade;
+		focaltech,fw-name = "FT_5x46_Ref_V0b_D01_20160513_app.i";
+	};
+
+	focaltech@3e {
+		status = "disabled";
+		compatible = "focaltech,fts";
+		reg = <0x3e>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <65 0x2002>;
+		vdd-supply = <&pm8937_l10>;
+		vcc_i2c-supply = <&pm8937_l5>;
+		/* pins used by touchscreen */
+		pinctrl-names = "pmx_ts_active",
+				"pmx_ts_suspend",
+				"pmx_ts_release";
+		pinctrl-0 = <&ts_int_active &ts_reset_active>;
+		pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
+		pinctrl-2 = <&ts_release>;
+		focaltech,name = "ft5346i";
+		focaltech,family-id = <0x06>;
+		focaltech,reset-gpio = <&tlmm 64 0x0>;
+		focaltech,irq-gpio = <&tlmm 65 0x1>;
+		focaltech,display-coords = <0 0 720 1280>;
+		focaltech,panel-coords = <0 0 720 1280>;
+		focaltech,button-map= <139 172 158>; /* MENU HOME BACK */
+		focaltech,button-y-coord = <2000>;
+		focaltech,button-x-coords = <180 540 900>;
+		focaltech,no-force-update;
+		focaltech,i2c-pull-up;
+		focaltech,group-id = <1>;
+		focaltech,hard-reset-delay-ms = <20>;
+		focaltech,soft-reset-delay-ms = <200>;
+		focaltech,num-max-touches = <5>;
+		focaltech,fw-delay-aa-ms = <30>;
+		focaltech,fw-delay-55-ms = <30>;
+		focaltech,fw-upgrade-id1 = <0x79>;
+		focaltech,fw-upgrade-id2 = <0x08>;
+		focaltech,fw-delay-readid-ms = <10>;
+		focaltech,fw-delay-era-flsh-ms = <2000>;
+		focaltech,fw-auto-cal;
+		focaltech,ignore-id-check;
+	};
+};
+
+&sdhc_2 {
+	/* device core power supply */
+	vdd-supply = <&pm8937_l11>;
+	qcom,vdd-voltage-level = <2950000 2950000>;
+	qcom,vdd-current-level = <15000 800000>;
+
+	/* device communication power supply */
+	vdd-io-supply = <&pm8937_l12>;
+	qcom,vdd-io-voltage-level = <1800000 2950000>;
+	qcom,vdd-io-current-level = <200 22000>;
+
+	pinctrl-names = "active", "sleep";
+	pinctrl-0 = <&sdc2_clk_on &sdc2_cmd_on &sdc2_data_on &sdc2_cd_on>;
+	pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off &sdc2_cd_off>;
+
+	#address-cells = <0>;
+	interrupt-parent = <&sdhc_2>;
+	interrupts = <0 1 2>;
+	#interrupt-cells = <1>;
+	interrupt-map-mask = <0xffffffff>;
+	interrupt-map = <0 &intc 0 125 0
+		1 &intc 0 221 0
+		2 &tlmm 67 0>;
+	interrupt-names = "hc_irq", "pwr_irq", "status_irq";
+	cd-gpios = <&tlmm 67 0x1>;
+
+	qcom,clk-rates = <400000 20000000 25000000 50000000 100000000
+								200000000>;
+	qcom,bus-speed-mode = "SDR12", "SDR25", "SDR50", "DDR50", "SDR104";
+
+	status = "ok";
+};
+
+&tlmm {
+	fpc_reset {
+		fpc_reset_active: active {
+			mux {
+				pins = "gpio8";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio8";
+				drive-strength = <6>;
+				bias-disable = <0>;
+				output-high;
+			};
+		};
+		fpc_reset_suspend: suspend {
+			mux {
+				pins = "gpio8";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio8";
+				driver-strength = <2>;
+				bias-disable = <0>;
+			};
+		};
+	};
+
+	fpc_irq {
+		fpc_irq_active: active {
+			mux {
+				pins = "gpio9";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio9";
+				drive-strength = <2>;
+				bias-disable = <0>;
+				input-enable;
+			};
+		};
+		fpc_irq_suspend: suspend {
+			mux {
+				pins = "gpio9";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio9";
+				driver-strength = <2>;
+				bias-disable = <0>;
+			};
+		};
+	};
+};
+
