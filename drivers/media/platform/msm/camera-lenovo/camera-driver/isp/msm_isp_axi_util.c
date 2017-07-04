@@ -540,6 +540,89 @@ static void msm_isp_cfg_framedrop_reg(struct vfe_device *vfe_dev,
 }
 
 /**
+ * msm_isp_check_epoch_status() -  check the epock signal for framedrop
+ *
+ * @vfe_dev: The h/w on which the epoch signel is reveived
+ * @frame_src: The source of the epoch signal for this frame
+ *
+ * For dual vfe case and pixel stream, if both vfe's epoch signal is
+ * received, this function will return success.
+ * It will also return the vfe1 for further process
+ * For none dual VFE stream or none pixl source, this
+ * funciton will just return success.
+ *
+ * Returns  1 - epoch received is complete.
+ *          0 - epoch reveived is not complete.
+ */
+static int msm_isp_check_epoch_status(struct vfe_device **vfe_dev,
+	enum msm_vfe_input_src frame_src)
+{
+	struct vfe_device *vfe_dev_cur = *vfe_dev;
+	struct vfe_device *vfe_dev_other = NULL;
+	uint32_t vfe_id_other = 0;
+	uint32_t vfe_id_cur = 0;
+	uint32_t epoch_mask = 0;
+	unsigned long flags;
+	int completed = 0;
+
+	spin_lock_irqsave(
+		&vfe_dev_cur->common_data->common_dev_data_lock, flags);
+
+	if (vfe_dev_cur->is_split &&
+		frame_src == VFE_PIX_0) {
+		if (vfe_dev_cur->pdev->id == ISP_VFE0) {
+			vfe_id_cur = ISP_VFE0;
+			vfe_id_other = ISP_VFE1;
+		} else {
+			vfe_id_cur = ISP_VFE1;
+			vfe_id_other = ISP_VFE0;
+		}
+		vfe_dev_other = vfe_dev_cur->common_data->dual_vfe_res->
+			vfe_dev[vfe_id_other];
+
+		if (vfe_dev_cur->common_data->dual_vfe_res->
+			epoch_sync_mask & (1 << vfe_id_cur)) {
+			/* serious scheduling delay */
+			pr_err("Missing epoch: vfe %d, epoch mask 0x%x\n",
+				vfe_dev_cur->pdev->id,
+				vfe_dev_cur->common_data->dual_vfe_res->
+					epoch_sync_mask);
+			goto fatal;
+		}
+
+		vfe_dev_cur->common_data->dual_vfe_res->
+			epoch_sync_mask |= (1 << vfe_id_cur);
+
+		epoch_mask = (1 << vfe_id_cur) | (1 << vfe_id_other);
+		if ((vfe_dev_cur->common_data->dual_vfe_res->
+			epoch_sync_mask & epoch_mask) == epoch_mask) {
+
+			if (vfe_id_other == ISP_VFE0)
+				*vfe_dev = vfe_dev_cur;
+			else
+				*vfe_dev = vfe_dev_other;
+
+			vfe_dev_cur->common_data->dual_vfe_res->
+				epoch_sync_mask &= ~epoch_mask;
+			completed = 1;
+		}
+	} else
+		completed = 1;
+
+	spin_unlock_irqrestore(
+		&vfe_dev_cur->common_data->common_dev_data_lock, flags);
+
+	return completed;
+fatal:
+	spin_unlock_irqrestore(
+		&vfe_dev_cur->common_data->common_dev_data_lock, flags);
+	/* new error event code will be added later */
+	msm_isp_halt_send_error(vfe_dev_cur, ISP_EVENT_PING_PONG_MISMATCH);
+	return 0;
+}
+
+
+/**
  * msm_isp_update_framedrop_reg() - Update frame period pattern on h/w
  * @vfe_dev: The h/w on which the perion pattern is updated.
  * @frame_src: Input source.
@@ -554,9 +637,14 @@ void msm_isp_update_framedrop_reg(struct vfe_device *vfe_dev,
 	enum msm_vfe_input_src frame_src)
 {
 	int i;
-	struct msm_vfe_axi_shared_data *axi_data = &vfe_dev->axi_data;
+	struct msm_vfe_axi_shared_data *axi_data = NULL;
 	struct msm_vfe_axi_stream *stream_info;
 	unsigned long flags;
+
+	if (msm_isp_check_epoch_status(&vfe_dev, frame_src) != 1)
+		return;
+
+	axi_data = &vfe_dev->axi_data;
 
 	for (i = 0; i < VFE_AXI_SRC_MAX; i++) {
 		if (SRC_TO_INTF(axi_data->stream_info[i].stream_src) !=
@@ -1426,6 +1514,22 @@ void msm_isp_halt_send_error(struct vfe_device *vfe_dev, uint32_t event)
 	uint32_t i = 0;
 	struct msm_isp_event_data error_event;
 	struct msm_vfe_axi_halt_cmd halt_cmd;
+	uint32_t irq_status0, irq_status1;
+
+	if (ISP_EVENT_PING_PONG_MISMATCH == event &&
+		vfe_dev->axi_data.recovery_count < MAX_RECOVERY_THRESHOLD) {
+		vfe_dev->hw_info->vfe_ops.irq_ops.
+			read_irq_status(vfe_dev, &irq_status0, &irq_status1);
+		pr_err("%s:pingpong mismatch from vfe%d, core%d, recovery_count %d\n",
+			__func__, vfe_dev->pdev->id, smp_processor_id(),
+			vfe_dev->axi_data.recovery_count);
+
+		vfe_dev->axi_data.recovery_count++;
+
+		msm_isp_process_overflow_irq(vfe_dev,
+			&irq_status0, &irq_status1, 1);
+		return;
+	}
 
 	memset(&halt_cmd, 0, sizeof(struct msm_vfe_axi_halt_cmd));
 	memset(&error_event, 0, sizeof(struct msm_isp_event_data));
@@ -1433,7 +1537,7 @@ void msm_isp_halt_send_error(struct vfe_device *vfe_dev, uint32_t event)
 	halt_cmd.overflow_detected = 0;
 	halt_cmd.blocking_halt = 0;
 
-	pr_err("%s: vfe%d fatal error!\n", __func__, vfe_dev->pdev->id);
+	pr_err("%s: vfe%d  exiting camera!\n", __func__, vfe_dev->pdev->id);
 
 	atomic_set(&vfe_dev->error_info.overflow_state,
 		HALT_ENFORCED);
@@ -2113,24 +2217,11 @@ int msm_isp_axi_halt(struct vfe_device *vfe_dev,
 {
 	int rc = 0;
 
-	if (atomic_read(&vfe_dev->error_info.overflow_state) ==
-		OVERFLOW_DETECTED) {
-		ISP_DBG("%s: VFE%d already halted, direct return\n",
-			__func__, vfe_dev->pdev->id);
-		return rc;
-	}
-
-	if (halt_cmd->overflow_detected) {
-		atomic_cmpxchg(&vfe_dev->error_info.overflow_state,
-			NO_OVERFLOW, OVERFLOW_DETECTED);
-		pr_err("%s: VFE%d Bus overflow detected: start recovery!\n",
-			__func__, vfe_dev->pdev->id);
-	}
-
 	if (halt_cmd->stop_camif) {
 		vfe_dev->hw_info->vfe_ops.core_ops.
-			update_camif_state(vfe_dev, DISABLE_CAMIF_IMMEDIATELY);
+		update_camif_state(vfe_dev, DISABLE_CAMIF_IMMEDIATELY);
 	}
+
 	rc = vfe_dev->hw_info->vfe_ops.axi_ops.halt(vfe_dev,
 		halt_cmd->blocking_halt);
 
@@ -2152,6 +2243,9 @@ int msm_isp_axi_reset(struct vfe_device *vfe_dev,
 		rc = -1;
 		return rc;
 	}
+
+	/* flush the tasklet queue */
+	msm_isp_flush_tasklet(vfe_dev);
 
 	rc = vfe_dev->hw_info->vfe_ops.core_ops.reset_hw(vfe_dev,
 		0, reset_cmd->blocking);
@@ -2216,7 +2310,16 @@ int msm_isp_axi_restart(struct vfe_device *vfe_dev,
 	uint32_t wm_reload_mask = 0x0;
 	unsigned long flags;
 
+	/* reset sync mask */
+	spin_lock_irqsave(
+		&vfe_dev->common_data->common_dev_data_lock, flags);
+	vfe_dev->common_data->dual_vfe_res->epoch_sync_mask = 0;
+	spin_unlock_irqrestore(
+		&vfe_dev->common_data->common_dev_data_lock, flags);
+
 	vfe_dev->buf_mgr->frameId_mismatch_recovery = 0;
+
+
 	for (i = 0, j = 0; j < axi_data->num_active_stream &&
 		i < VFE_AXI_SRC_MAX; i++, j++) {
 		stream_info = &axi_data->stream_info[i];
@@ -2235,7 +2338,8 @@ int msm_isp_axi_restart(struct vfe_device *vfe_dev,
 	rc = vfe_dev->hw_info->vfe_ops.axi_ops.restart(vfe_dev, 0,
 		restart_cmd->enable_camif);
 	if (rc < 0)
-		pr_err("%s Error restarting HW\n", __func__);
+		pr_err("%s Error restarting vfe %d HW\n",
+			__func__, vfe_dev->pdev->id);
 
 	return rc;
 }
@@ -2561,6 +2665,7 @@ static int msm_isp_start_axi_stream(struct vfe_device *vfe_dev,
 		vfe_dev->hw_info->vfe_ops.core_ops.
 			update_camif_state(vfe_dev, camif_update);
 		vfe_dev->axi_data.camif_state = CAMIF_ENABLE;
+		vfe_dev->common_data->dual_vfe_res->epoch_sync_mask = 0;
 	}
 
 	if (wait_for_complete) {
@@ -3383,6 +3488,13 @@ void msm_isp_process_axi_irq_stream(struct vfe_device *vfe_dev,
 	if (done_buf)
 		buf_index = done_buf->buf_idx;
 
+	ISP_DBG("%s: vfe %d: stream 0x%x, frame id %d, pingpong bit %d\n",
+		__func__,
+		vfe_dev->pdev->id,
+		stream_info->stream_id,
+		frame_id,
+		pingpong_bit);
+
 	rc = vfe_dev->buf_mgr->ops->update_put_buf_cnt(vfe_dev->buf_mgr,
 		vfe_dev->pdev->id,
 		done_buf ? done_buf->bufq_handle :
@@ -3392,7 +3504,7 @@ void msm_isp_process_axi_irq_stream(struct vfe_device *vfe_dev,
 	if (rc < 0) {
 		spin_unlock_irqrestore(&stream_info->lock, flags);
 		/* this usually means a serious scheduling error */
-		msm_isp_halt_send_error(vfe_dev, ISP_EVENT_BUF_FATAL_ERROR);
+		msm_isp_halt_send_error(vfe_dev, ISP_EVENT_PING_PONG_MISMATCH);
 		return;
 	}
 	/*
