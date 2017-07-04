@@ -16,8 +16,8 @@
  * VERSION = "1.0"
  *---------------------------------------------------------------------------*/
 &mdss_mdp {
-	dsi_otm1901a_tm_1080p_video: qcom,mdss_dsi_otm1901a_tm_1080p_video {
-		qcom,mdss-dsi-panel-name = "otm1901a_1080p_video_TianMa";
+	dsi_otm1901a_tm_g6_1080p_video: qcom,mdss_dsi_otm1901a_tm_g6_1080p_video {
+		qcom,mdss-dsi-panel-name = "otm1901a_1080p_video_TianMa_G6";
 		qcom,mdss-dsi-panel-type = "dsi_video_mode";
 		qcom,mdss-dsi-panel-destination = "display_1";
 		qcom,mdss-dsi-panel-framerate = <60>;

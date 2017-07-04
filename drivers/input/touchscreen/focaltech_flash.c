@@ -129,7 +129,8 @@ static unsigned char FT5346i_FW_OFILM[] = {
 };
 static unsigned char FT5346i_FW_MUTTO[] = {
 	//#include "FT_5x46_MUTTO_app.i"
-	#include "Lenovo_Karate_DVT1_08000014_20160622_app.i"
+	//#include "Lenovo_Karate_DVT1_08000014_20160622_app.i"
+	#include "Lenovo_Karate_DVT2_08000015_20160825_app.i"
 };
 
 static unsigned char FT5436_FW_OFILM[] = {
@@ -141,7 +142,8 @@ static unsigned char FT5436_FW_OFILM[] = {
 
 static unsigned char FT5436_FW_MUTTO[] = {
 	//#include "FT_5436_OFILM_app.i"
-	#include "Lenovo_KaratePlus_EVT_08000012_20160614_app.i"
+	//#include "Lenovo_KaratePlus_EVT_08000012_20160614_app.i"
+	#include "Lenovo_KaratePlus_DVT2_08000013_20160810_app.i"
 };
 
 

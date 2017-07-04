@@ -1,7 +1,7 @@
 #ifndef __UAPI_MEDIA_MSMB_BUF_MNGR_H__
 #define __UAPI_MEDIA_MSMB_BUF_MNGR_H__
 
-#include "msmb_camera.h"
+#include "./msmb_camera.h"
 
 enum msm_camera_buf_mngr_cmd {
 	MSM_CAMERA_BUF_MNGR_CONT_MAP,
