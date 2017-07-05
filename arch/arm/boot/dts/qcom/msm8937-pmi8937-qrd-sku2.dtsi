@@ -57,8 +57,8 @@
 			vcc_i2c-supply = <&pm8937_l5>;
 			/* pins used by touchscreen */
 			pinctrl-names = "pmx_ts_active",
-					"pmx_ts_suspend",
-					"pmx_ts_release";
+						"pmx_ts_suspend",
+						"pmx_ts_release";
 			pinctrl-0 = <&ts_int_active &ts_reset_active>;
 			pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
 			pinctrl-2 = <&ts_release>;
@@ -88,6 +88,17 @@
 			clocks = <&clock_gcc clk_gcc_blsp1_ahb_clk>,
 				<&clock_gcc clk_gcc_blsp1_qup3_i2c_apps_clk>;
 		};
+	};
+
+	gen-vkeys {
+		compatible = "qcom,gen-vkeys";
+		label = "ft5x06_ts";
+		qcom,disp-maxx = <720>;
+		qcom,disp-maxy = <1280>;
+		qcom,panel-maxx = <720>;
+		qcom,panel-maxy = <1400>;
+		qcom,key-codes = <139 172 158>;
+		qcom,y-offset = <0>;
 	};
 };
 
@@ -124,7 +135,7 @@
 };
 
 &dsi_otm1901a_tm_1080p_video {
-	//qcom,esd-check-enabled;
+//	qcom,esd-check-enabled;
 	qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
 };
 
