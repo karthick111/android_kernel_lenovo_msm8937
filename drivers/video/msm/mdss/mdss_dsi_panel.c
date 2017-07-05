@@ -33,6 +33,7 @@
 #define VSYNC_DELAY msecs_to_jiffies(17)
 
 DEFINE_LED_TRIGGER(bl_led_trigger);
+bool bl_for_charge = false;
 
 void mdss_dsi_panel_pwm_cfg(struct mdss_dsi_ctrl_pdata *ctrl)
 {
@@ -700,6 +701,12 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 			__func__);
 		break;
 	}
+/*Maxina save bl_level for charge */
+	if(bl_level  == 0)
+		bl_for_charge = false;
+	else
+		bl_for_charge = true;
+/******Save end*******/
 }
 
 static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
