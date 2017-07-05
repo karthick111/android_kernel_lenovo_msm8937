@@ -24,7 +24,6 @@
 		qcom,torch-source = <&pmi8950_torch0 &pmi8950_torch1>;
 		qcom,switch-source = <&pmi8950_switch>;
 	};
-
 	i2c@78b7000 {
 		status = "ok";
 		focaltech@3e {
@@ -141,4 +140,3 @@
 		};
 	};
 };
-
