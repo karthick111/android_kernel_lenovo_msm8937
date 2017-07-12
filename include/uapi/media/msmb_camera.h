@@ -1,6 +1,10 @@
 #ifndef __UAPI_LINUX_MSMB_CAMERA_H
 #define __UAPI_LINUX_MSMB_CAMERA_H
 
+#ifdef CONFIG_LENOVO_DIR_CAMERA
+#include <uapi/media/msmb_camera_lenovo.h>
+#else
+
 #include <linux/videodev2.h>
 #include <linux/types.h>
 #include <linux/ioctl.h>
@@ -222,6 +226,8 @@ struct msm_camera_private_ioctl_arg {
 
 #define VIDIOC_MSM_CAMERA_PRIVATE_IOCTL_CMD \
 	_IOWR('V', BASE_VIDIOC_PRIVATE, struct msm_camera_private_ioctl_arg)
+
+#endif
 
 #endif
 
