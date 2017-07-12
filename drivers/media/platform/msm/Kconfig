@@ -38,6 +38,13 @@ menuconfig MSMB_CAMERA
 	  adds support for the camera driver stack including sensor, isp
 	  and postprocessing drivers.
 
+menuconfig LENOVO_DIR_CAMERA
+	bool "Lenovo MSM camera directory support"
+	depends on MSMB_CAMERA
+	---help---
+	  Say Y here to enable selecting the vendor lenovo camera driver
+	  directory to compile into the kernel.
+
 config MSMB_CAMERA_DEBUG
 	bool "QTI MSM camera 2.0 debugging with printk"
 	depends on MSMB_CAMERA
@@ -45,7 +52,12 @@ config MSMB_CAMERA_DEBUG
 	  Enable printk() debug for msm camera 2.0
 
 if MSMB_CAMERA
+if LENOVO_DIR_CAMERA
+source "drivers/media/platform/msm/camera_v2_lenovo/Kconfig"
+endif
+if !LENOVO_DIR_CAMERA
 source "drivers/media/platform/msm/camera_v2/Kconfig"
+endif
 endif # MSMB_CAMERA
 
 source "drivers/media/platform/msm/dvb/Kconfig"
