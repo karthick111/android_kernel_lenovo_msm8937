@@ -13,9 +13,15 @@
 #ifndef __UAPI_MSM_JPEG_DMA__
 #define __UAPI_MSM_JPEG_DMA__
 
+#ifdef CONFIG_LENOVO_DIR_CAMERA
+#include <uapi/media/msm_jpeg_dma_lenovo.h>
+#else
+
 #include <linux/videodev2.h>
 
 /* msm jpeg dma control ID's */
 #define V4L2_CID_JPEG_DMA_SPEED (V4L2_CID_PRIVATE_BASE)
+
+#endif
 
 #endif /* __UAPI_MSM_JPEG_DMA__ */
