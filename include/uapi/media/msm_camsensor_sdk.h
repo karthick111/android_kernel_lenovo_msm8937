@@ -1,6 +1,10 @@
 #ifndef __UAPI_LINUX_MSM_CAMSENSOR_SDK_H
 #define __UAPI_LINUX_MSM_CAMSENSOR_SDK_H
 
+#ifdef CONFIG_LENOVO_DIR_CAMERA
+#include <uapi/media/msm_camsensor_sdk_lenovo.h>
+#else
+
 #include <linux/videodev2.h>
 
 #define KVERSION 0x1
@@ -416,5 +420,7 @@ struct msm_camera_i2c_reg_setting_array {
 	enum msm_camera_i2c_data_type data_type;
 	unsigned short delay;
 };
+
+#endif
 
 #endif
