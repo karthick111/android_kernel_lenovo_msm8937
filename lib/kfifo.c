@@ -114,6 +114,16 @@ static void kfifo_copy_in(struct __kfifo *fifo, const void *src,
 	}
 	l = min(len, size - off);
 
+	if (!fifo->data) {
+		printk("%s: fifo->data NULL\n", __func__);
+		return;
+	}
+
+	if (!(fifo->data + off)) {
+		printk("%s: fifo->data+off (off=%d) NULL\n", __func__, off);
+		return;
+	}
+
 	memcpy(fifo->data + off, src, l);
 	memcpy(fifo->data, src + l, len - l);
 	/*
@@ -131,6 +141,11 @@ unsigned int __kfifo_in(struct __kfifo *fifo,
 	l = kfifo_unused(fifo);
 	if (len > l)
 		len = l;
+
+	if (!fifo->data) {
+		printk("%s-%d: fifo->data NULL\n", __func__, __LINE__);
+		return -ENOMEM;
+	}
 
 	kfifo_copy_in(fifo, buf, len, fifo->in);
 	fifo->in += len;
