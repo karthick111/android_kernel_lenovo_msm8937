@@ -896,11 +896,11 @@ static const char * get_hardware_type_by_lenovoid(void)
 }
 
 static ssize_t
-msm_get_platform_hardware_tpye(struct device *dev,
+msm_get_platform_hardware_type(struct device *dev,
 			struct device_attribute *attr,
 			char *buf)
 {
-     printk("msm_get_platform_hardware_tpye");
+     printk("msm_get_platform_hardware_type");
      return snprintf(buf, PAGE_SIZE, "%-.32s\n",get_hardware_type_by_lenovoid());
 }
 
@@ -1227,8 +1227,8 @@ static struct device_attribute msm_soc_attr_platform_lenovo_id =
 			msm_get_platform_lenovo_id, NULL);
 
 static struct device_attribute msm_soc_attr_platform_lenovo_hardware_type =
-	__ATTR(platform_lenovo_hardware_tpye, S_IRUGO,
-			msm_get_platform_hardware_tpye, NULL);
+	__ATTR(platform_lenovo_hardware_type, S_IRUGO,
+			msm_get_platform_hardware_type, NULL);
 #endif
 
 /* Platform Subtype String is being deprecated. Use Platform
