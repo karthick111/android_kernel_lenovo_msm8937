@@ -2228,7 +2228,7 @@ static ssize_t pwm_us_store(struct device *dev,
 	previous_pwm_us = pwm_cfg->pwm_period_us;
 
 	pwm_cfg->pwm_period_us = pwm_us;
-	pwm_free(pwm_cfg->pwm_dev);
+	//pwm_free(pwm_cfg->pwm_dev);
 	ret = qpnp_pwm_init(pwm_cfg, led->spmi_dev, led->cdev.name);
 	if (ret) {
 		pwm_cfg->pwm_period_us = previous_pwm_us;
