@@ -26,6 +26,8 @@
 #include "mdss_dsi.h"
 #include "mdss_dba_utils.h"
 
+#include <linux/hardware_info.h>
+
 #define DT_CMD_HDR 6
 #define MIN_REFRESH_RATE 48
 #define DEFAULT_MDP_TRANSFER_TIME 14000
@@ -220,6 +222,40 @@ static void mdss_dsi_panel_bklt_dcs(struct mdss_dsi_ctrl_pdata *ctrl, int level)
 	mdss_dsi_cmdlist_put(ctrl, &cmdreq);
 }
 
+/*
+ * Note that: the following panel parameter related function must be called
+ * within mfd->panel_info->param_lock to avoid data mess-up caused by possible
+ * race condition between blank/unblank and parameter access.
+ */
+static int mdss_dsi_panel_set_param(struct mdss_panel_data *pdata,
+		u16 id, u16 val)
+{
+	struct mdss_panel_info *pinfo = &pdata->panel_info;
+	struct dsi_panel_cmds *cmds;
+	struct mdss_dsi_ctrl_pdata *ctrl;
+
+	ctrl = container_of(pdata, struct mdss_dsi_ctrl_pdata, panel_data);
+	if (!ctrl) {
+		pr_err("%s: ctrl is null\n", __func__);
+		return -EINVAL;
+	}
+
+	if (!mdss_panel_param_is_supported(pinfo, id)) {
+		pr_debug("%s: id %d is disabled, ignore request\n",
+			__func__, id);
+		return 0;
+	}
+
+	cmds = ctrl->param_cmds[id];
+	if (!cmds || !cmds[val].cmd_cnt) {
+		pr_warn("%s: value %d not supported for id %d\n",
+				__func__, val, id);
+		return -EINVAL;
+	}
+	mdss_dsi_panel_cmds_send(ctrl, &cmds[val], CMD_REQ_COMMIT);
+	return 0;
+}
+
 static int mdss_dsi_request_gpios(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 {
 	int rc = 0;
@@ -381,7 +417,7 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 			gpio_set_value((ctrl_pdata->disp_en_gpio), 0);
 			gpio_free(ctrl_pdata->disp_en_gpio);
 		}
-		gpio_set_value((ctrl_pdata->rst_gpio), 0);
+		//gpio_set_value((ctrl_pdata->rst_gpio), 0);
 		gpio_free(ctrl_pdata->rst_gpio);
 		if (gpio_is_valid(ctrl_pdata->mode_gpio))
 			gpio_free(ctrl_pdata->mode_gpio);
@@ -660,6 +696,7 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 	 * for the backlight brightness. If the brightness is less
 	 * than it, the controller can malfunction.
 	 */
+         pr_info("[LCD]%s bl_level = %d\n",__func__,bl_level);
 
 	if ((bl_level < pdata->panel_info.bl_min) && (bl_level != 0))
 		bl_level = pdata->panel_info.bl_min;
@@ -709,7 +746,7 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 	struct dsi_panel_cmds *on_cmds;
 	int ret = 0;
 
-	if (pdata == NULL) {
+        if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
 		return -EINVAL;
 	}
@@ -718,7 +755,7 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 	ctrl = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
 
-	pr_debug("%s: ndx=%d\n", __func__, ctrl->ndx);
+	pr_info("[LCD]%s: ndx=%d\n", __func__, ctrl->ndx);
 
 	if (pinfo->dcs_cmd_by_left) {
 		if (ctrl->ndx != DSI_CTRL_LEFT)
@@ -743,7 +780,7 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 	if (ctrl->ds_registered)
 		mdss_dba_utils_video_on(pinfo->dba_data, pinfo);
 end:
-	pr_debug("%s:-\n", __func__);
+	pr_info("[LCD]%s:-\n", __func__);
 	return ret;
 }
 
@@ -782,7 +819,7 @@ static int mdss_dsi_post_panel_on(struct mdss_panel_data *pdata)
 	}
 
 end:
-	pr_debug("%s:-\n", __func__);
+	pr_info("[LCD]%s:-end\n", __func__);
 	return 0;
 }
 
@@ -790,6 +827,8 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 {
 	struct mdss_dsi_ctrl_pdata *ctrl = NULL;
 	struct mdss_panel_info *pinfo;
+	unsigned long starttimejiffies;
+	starttimejiffies = jiffies_to_msecs(jiffies);
 
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
@@ -817,6 +856,7 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 
 end:
 	pr_debug("%s:-\n", __func__);
+	pr_info("[LCD]%s Done. cost %lu ms\n", __func__, jiffies_to_msecs(jiffies)-starttimejiffies);
 	return 0;
 }
 
@@ -952,6 +992,93 @@ exit_free:
 	return -ENOMEM;
 }
 
+static struct panel_param_val_map hbm_map[HBM_STATE_NUM] = {
+	{"0", "qcom,mdss-dsi-hbm-off-command"},
+	{"1", "qcom,mdss-dsi-hbm-on-command"},
+};
+static struct panel_param_val_map cabc_map[CABC_MODE_NUM] = {
+	{"UI", "qcom,mdss-dsi-cabc-ui-command"},
+	{"ST", NULL},
+	{"MV", "qcom,mdss-dsi-cabc-mv-command"},
+	{"DIS", "qcom,mdss-dsi-cabc-dis-command"},
+	{"OFF", NULL},
+};
+
+static struct panel_param_val_map acl_map[ACL_STATE_NUM] = {
+	{"0", "qcom,mdss-dsi-acl-off-command"},
+	{"1", "qcom,mdss-dsi-acl-on-command"},
+};
+
+static struct panel_param_val_map seed_map[SEED_STATE_NUM] = {
+	{"VBT", "qcom,mdss-dsi-seed-off-command"},
+	{"STD", "qcom,mdss-dsi-seed-on-command"},
+};
+
+static struct panel_param mdss_dsi_panel_param[PARAM_ID_NUM] = {
+	{"HBM", hbm_map, HBM_STATE_NUM, HBM_OFF_STATE, HBM_OFF_STATE, false},
+	{"CABC", cabc_map, CABC_MODE_NUM, CABC_UI_MODE, CABC_UI_MODE, false},
+	{"ACL", acl_map, ACL_STATE_NUM, ACL_OFF_STATE, ACL_OFF_STATE, false},
+	{"SEED", seed_map, SEED_STATE_NUM, SEED_OFF_STATE, SEED_OFF_STATE, false},
+};
+static int mdss_panel_parse_param_prop(struct device_node *np,
+				struct mdss_panel_info *pinfo,
+				struct mdss_dsi_ctrl_pdata *ctrl)
+{
+	int i, j, cmd_num, rc = 0;
+	struct panel_param *param;
+	struct dsi_panel_cmds *cmds;
+	char *prop;
+
+	mutex_init(&pinfo->param_lock);
+
+	for (i = 0; i < ARRAY_SIZE(mdss_dsi_panel_param); i++) {
+		param = &mdss_dsi_panel_param[i];
+		cmds = kcalloc(param->val_max, sizeof(struct dsi_panel_cmds),
+				GFP_KERNEL);
+		if (cmds == NULL) {
+			rc = -ENOMEM;
+			goto err;
+		}
+		ctrl->param_cmds[i] = cmds;
+		cmd_num = 0;
+
+		for (j = 0; j < param->val_max; j++) {
+			prop = param->val_map[j].prop;
+			if (!prop || !of_get_property(np, prop, NULL))
+				continue;
+			rc = mdss_dsi_parse_dcs_cmds(np,
+					&cmds[j], prop, NULL);
+			if (rc) {
+				pr_err("%s: failed to read prop %s\n",
+					__func__, prop);
+				goto err;
+			}
+			if (cmds[j].cmd_cnt)
+				cmd_num++;
+		}
+
+		if (cmd_num == 0) {
+			kfree(ctrl->param_cmds[i]);
+			ctrl->param_cmds[i] = NULL;
+			continue;
+		}
+
+		param->is_supported = true;
+		pinfo->param[i] = param;
+		pr_info("%s: %s feature enabled with %d dt cmds\n",
+				__func__, param->param_name, cmd_num);
+	}
+
+	return rc;
+err:
+	for (i = 0; i < ARRAY_SIZE(mdss_dsi_panel_param); i++) {
+		kfree(ctrl->param_cmds[i]);
+		ctrl->param_cmds[i] = NULL;
+		pinfo->param[i] = NULL;
+		mdss_dsi_panel_param[i].is_supported = false;
+	}
+	return rc;
+}
 
 int mdss_panel_get_dst_fmt(u32 bpp, char mipi_mode, u32 pixel_packing,
 				char *dst_format)
@@ -1507,6 +1634,7 @@ static bool mdss_dsi_cmp_panel_reg_v2(struct mdss_dsi_ctrl_pdata *ctrl)
 
 	for (j = 0; j < ctrl->groups; ++j) {
 		for (i = 0; i < len; ++i) {
+			pr_info("ESD lcd reg:[%x]--[%x].\n", ctrl->return_buf[i], ctrl->status_value[group + i]);
 			if (ctrl->return_buf[i] !=
 				ctrl->status_value[group + i])
 				break;
@@ -2591,12 +2719,15 @@ static int mdss_panel_parse_dt(struct device_node *np,
 			MSM_DBA_CHIP_NAME_MAX_LEN);
 	}
 
+	if (mdss_panel_parse_param_prop(np, pinfo, ctrl_pdata))
+		pr_err("Error parsing panel parameter properties\n");
 	return 0;
 
 error:
 	return -EINVAL;
 }
 
+extern char Lcm_name[HARDWARE_MAX_ITEM_LENGTH];
 int mdss_dsi_panel_init(struct device_node *node,
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata,
 	int ndx)
@@ -2621,6 +2752,7 @@ int mdss_dsi_panel_init(struct device_node *node,
 	} else {
 		pr_info("%s: Panel Name = %s\n", __func__, panel_name);
 		strlcpy(&pinfo->panel_name[0], panel_name, MDSS_MAX_PANEL_LEN);
+	        strcpy(Lcm_name,panel_name);
 	}
 	rc = mdss_panel_parse_dt(node, ctrl_pdata);
 	if (rc) {
@@ -2638,6 +2770,7 @@ int mdss_dsi_panel_init(struct device_node *node,
 	ctrl_pdata->low_power_config = mdss_dsi_panel_low_power_config;
 	ctrl_pdata->panel_data.set_backlight = mdss_dsi_panel_bl_ctrl;
 	ctrl_pdata->switch_mode = mdss_dsi_panel_switch_mode;
+	ctrl_pdata->panel_data.set_param = mdss_dsi_panel_set_param;
 
 	return 0;
 }
