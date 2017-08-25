@@ -51,6 +51,10 @@
 #define CHARGER_TASK_JIFFIES		(HZ * 10)/* 30 sec */
 unsigned int g_call_state = 0; //0-not in call , 1-in call
 
+#define KARATE_NOM_BAT_CAP 3000    //Karate nominal cap of the battery is 3000amh,
+                                   //this variable only used to detect the battery cap of apk.
+#define KARATE_TYPE_BAT_CAP 3080   //Karate typical cap of the battery is 3080amh,
+                                   //this variable only used to detect the battery cap of apk.
 /* Config registers */
 struct smbchg_regulator {
 	struct regulator_desc	rdesc;
@@ -6738,6 +6742,7 @@ static int smbchg_battery_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_MAX_PULSE_ALLOWED:
 		val->intval = chip->max_pulse_allowed;
+                break;
 	case POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT:
 		val->intval = g_call_state;
 		break;
@@ -6754,7 +6759,10 @@ static int smbchg_battery_get_property(struct power_supply *psy,
 		if (rc) {
 			pr_warn("couldn't find battery capacity mah rc=%d\n", rc);
 		}
-		val->intval = battery_capacity;
+		if(battery_capacity == KARATE_TYPE_BAT_CAP)
+                        val->intval = KARATE_NOM_BAT_CAP;
+                else
+                        val->intval = battery_capacity;
 		break;
 	default:
 		return -EINVAL;
@@ -8004,7 +8012,7 @@ static int smbchg_hw_init(struct smbchg_chip *chip)
 	/*Set OTG ILIMIT*/
 	rc = smbchg_sec_masked_write(chip,
 				chip->otg_base + 0xF3,
-				0xFF, 0x1);
+				0xFF, 0x3);
 	if (rc < 0) {
 		dev_err(chip->dev, "Couldn't write OTG ILIMT=%d\n", rc);
 	}
@@ -8719,7 +8727,7 @@ static int smbchg_set_appropriate_cv(struct smbchg_chip *chip)
 		cv = 4400;
 	else if(chip->bat_is_warm){
 		cv = chip->vbat_warm;
-		smbchg_set_appropriate_iterm(chip,600);
+		smbchg_set_appropriate_iterm(chip,400);
 	}
 	else{
 		cv = 4400;
