@@ -311,6 +311,9 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata)
 	int ret = 0;
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
 
+	unsigned long starttimejiffies;
+	starttimejiffies = jiffies_to_msecs(jiffies);
+        pr_info("[LCD]%s:start\n",__func__);
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
 		return -EINVAL;
@@ -343,7 +346,8 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata)
 			pr_err("%s: Panel reset failed. rc=%d\n",
 					__func__, ret);
 	}
-
+        pr_info("[LCD]%s-:cost %lu ms, lp11_init=%d, splash_enable=%d\n", __func__, jiffies_to_msecs(jiffies)-starttimejiffies,
+			pdata->panel_info.mipi.lp11_init, pdata->panel_info.cont_splash_enabled);
 	return ret;
 }
 
@@ -1413,6 +1417,8 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 	struct mipi_panel_info *mipi;
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
 	int cur_power_state;
+	unsigned long starttimejiffies;
+	starttimejiffies = jiffies_to_msecs(jiffies);
 
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
@@ -1516,6 +1522,7 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 
 end:
 	pr_debug("%s-:\n", __func__);
+	pr_info("[LCD]%s-:cost %lu ms\n", __func__, jiffies_to_msecs(jiffies)-starttimejiffies);
 	return ret;
 }
 
@@ -1588,6 +1595,8 @@ static int mdss_dsi_unblank(struct mdss_panel_data *pdata)
 	struct mipi_panel_info *mipi;
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
 	struct mdss_dsi_ctrl_pdata *sctrl = NULL;
+	unsigned long starttimejiffies;
+	starttimejiffies = jiffies_to_msecs(jiffies);
 
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
@@ -1652,7 +1661,7 @@ error:
 	mdss_dsi_pm_qos_update_request(DSI_ENABLE_PC_LATENCY);
 
 	pr_debug("%s-:\n", __func__);
-
+        pr_info("[LCD]%s-:cost %lu ms\n", __func__, jiffies_to_msecs(jiffies)-starttimejiffies);
 	return ret;
 }
 
@@ -1728,7 +1737,7 @@ static int mdss_dsi_blank(struct mdss_panel_data *pdata, int power_state)
 error:
 	mdss_dsi_clk_ctrl(ctrl_pdata, ctrl_pdata->dsi_clk_handle,
 			  MDSS_DSI_ALL_CLKS, MDSS_DSI_CLK_OFF);
-	pr_debug("%s-:End\n", __func__);
+	pr_info("[LCD]%s-:End\n", __func__);
 	return ret;
 }
 
@@ -2643,6 +2652,7 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 		ctrl_pdata->refresh_clk_rate = true;
 		break;
 	case MDSS_EVENT_LINK_READY:
+		pr_info("[LCD]%s:Entered Case MDSS_EVENT_LINK_READY\n", __func__);
 		if (ctrl_pdata->refresh_clk_rate)
 			rc = mdss_dsi_clk_refresh(pdata,
 				ctrl_pdata->update_phy_timing);
@@ -2652,24 +2662,29 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 							pdata);
 		break;
 	case MDSS_EVENT_UNBLANK:
+		pr_info("[LCD]%s:Entered Case MDSS_EVENT_UNBLANK\n", __func__);
 		if (ctrl_pdata->on_cmds.link_state == DSI_LP_MODE)
 			rc = mdss_dsi_unblank(pdata);
 		break;
 	case MDSS_EVENT_POST_PANEL_ON:
+		pr_info("[LCD]%s:Entered Case MDSS_EVENT_POST_PANEL_ON\n", __func__);
 		rc = mdss_dsi_post_panel_on(pdata);
 		break;
 	case MDSS_EVENT_PANEL_ON:
+		pr_info("[LCD]%s:Entered Case MDSS_EVENT_PANEL_ON\n", __func__);
 		ctrl_pdata->ctrl_state |= CTRL_STATE_MDP_ACTIVE;
 		if (ctrl_pdata->on_cmds.link_state == DSI_HS_MODE)
 			rc = mdss_dsi_unblank(pdata);
 		pdata->panel_info.esd_rdy = true;
 		break;
 	case MDSS_EVENT_BLANK:
+		pr_info("[LCD]%s:Entered Case MDSS_EVENT_BLANK\n", __func__);
 		power_state = (int) (unsigned long) arg;
 		if (ctrl_pdata->off_cmds.link_state == DSI_HS_MODE)
 			rc = mdss_dsi_blank(pdata, power_state);
 		break;
 	case MDSS_EVENT_PANEL_OFF:
+		pr_info("[LCD]%s:Entered Case MDSS_EVENT_PANEL_OFF\n", __func__);
 		power_state = (int) (unsigned long) arg;
 		disable_esd_thread();
 		ctrl_pdata->ctrl_state &= ~CTRL_STATE_MDP_ACTIVE;
@@ -2678,6 +2693,7 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 		rc = mdss_dsi_off(pdata, power_state);
 		break;
 	case MDSS_EVENT_CONT_SPLASH_FINISH:
+		pr_info("[LCD]%s:Entered Case MDSS_EVENT_CONT_SPLASH_FINISH\n", __func__);
 		if (ctrl_pdata->off_cmds.link_state == DSI_LP_MODE)
 			rc = mdss_dsi_blank(pdata, MDSS_PANEL_POWER_OFF);
 		ctrl_pdata->ctrl_state &= ~CTRL_STATE_MDP_ACTIVE;
@@ -2703,6 +2719,7 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 		}
 		break;
 	case MDSS_EVENT_CONT_SPLASH_BEGIN:
+		pr_info("%s: enter case MDSS_EVENT_CONT_SPLASH_BEGIN\n", __func__);
 		if (ctrl_pdata->off_cmds.link_state == DSI_HS_MODE) {
 			/* Panel is Enabled in Bootloader */
 			rc = mdss_dsi_blank(pdata, MDSS_PANEL_POWER_OFF);
