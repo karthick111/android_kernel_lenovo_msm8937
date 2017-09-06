@@ -22,10 +22,10 @@
 / {
 	qrd_batterydata: qcom,battery-data {
 		qcom,batt-id-range-pct = <15>;
-		#include "2444194_Lenovo_BL267_3080mAh_averaged_MasterSlave_Jun6th2016_PMI8952GUI20016.dtsi"
-		#include "2495463_Lenovo_BL267_3080mAh_averaged_MasterSlave_Jul18th2016_PMI8952GUI20016.dtsi"
-		#include "2494307_Lenovo_BL272scud_4000mAh_averaged_MasterSlave_Jul12th2016_PMI8952GUi20016_power.dtsi"
-		#include "2511324_Lenovo_BL272VK_4000mAh_averaged_MasterSlave_Aug1st2016_PMI8952GUI20016.dtsi"
+		#include "batterydata-bl267-karate-3080mah.dtsi"
+		#include "batterydata-bl267-karate-2-3080mah.dtsi"
+		#include "batterydata-bl272scud-karate_power-4000mah.dtsi"
+		#include "batterydata-bl272vk-karate-4000mah.dtsi"
 	};
 };
 
