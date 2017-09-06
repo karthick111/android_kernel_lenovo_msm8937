@@ -22,7 +22,8 @@
 / {
 	qrd_batterydata: qcom,battery-data {
 		qcom,batt-id-range-pct = <5>;
-		#include "2451137_Lenovo_BL270_4000mAh_averaged_MasterSlave_Jun20th2016_PMI8952GUI20016.dtsi"
+		#include "batterydata-bl270-karate-4000mah.dtsi"
+		#include "batterydata-bl270sunwoda-karate-4100mah.dtsi"
 	};
 };
 

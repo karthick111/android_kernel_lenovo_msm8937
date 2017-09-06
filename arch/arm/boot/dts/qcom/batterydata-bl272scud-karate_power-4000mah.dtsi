@@ -1,5 +1,5 @@
 
-qcom,2494307_lenovo_bl272scud_4000mah_averaged_masterslave_jul12th2016_power {
+qcom,bl272scud-karate_power-4000mah {
 	/* #2494307_Lenovo_BL272scud_4000mAh_averaged_MasterSlave_Jul12th2016*/
 	qcom,max-voltage-uv = <4400000>;
 	qcom,nom-batt-capacity-mah = <4000>;
