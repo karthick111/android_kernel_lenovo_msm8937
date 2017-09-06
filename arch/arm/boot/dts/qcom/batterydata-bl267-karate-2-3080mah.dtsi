@@ -1,5 +1,5 @@
 
-qcom,2495463_lenovo_bl267_3080mah_averaged_masterslave_jul18th2016 {
+qcom,bl267-karate-2-3080mah {
 	/* #2495463_Lenovo_BL267_3080mAh_averaged_MasterSlave_Jul18th2016*/
 	qcom,max-voltage-uv = <4400000>;
 	qcom,nom-batt-capacity-mah = <3080>;

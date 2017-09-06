@@ -22,7 +22,7 @@
 / {
 	qrd_batterydata: qcom,battery-data {
 		qcom,batt-id-range-pct = <5>;
-		#include "2444194_Lenovo_BL267_3080mAh_averaged_MasterSlave_Jun6th2016_PMI8952GUI20016.dtsi"
+		#include "batterydata-bl267-karate-3080mah.dtsi"
 	};
 };
 
