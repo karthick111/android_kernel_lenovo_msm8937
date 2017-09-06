@@ -1,5 +1,5 @@
 
-qcom,2541070_lenovo_bl270sunwoda_4100mah_averaged_masterslave_aug22nd2016 {
+qcom,bl270sunwoda-karate-4100mah {
 	/* #2541070_Lenovo_BL270sunwoda_4100mAh_averaged_MasterSlave_Aug22nd2016*/
 	qcom,max-voltage-uv = <4400000>;
 	qcom,nom-batt-capacity-mah = <4100>;
