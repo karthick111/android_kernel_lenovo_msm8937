@@ -2670,7 +2670,7 @@ static int synaptics_dsx_alloc_input(struct synaptics_rmi4_data *rmi4_data)
 	set_bit(EV_SYN, rmi4_data->input_dev->evbit);
 	/* enable power key injection */
 	set_bit(EV_KEY, rmi4_data->input_dev->evbit);
-	input_set_capability(rmi4_data->input_dev, EV_KEY, KEY_SLIDE);
+	input_set_capability(rmi4_data->input_dev, EV_KEY, KEY_WAKEUP);
 
 	pr_debug("allocated input device\n");
 
@@ -4372,8 +4372,8 @@ static int synaptics_rmi4_f12_wakeup_gesture(
 
 	if (f12_d4_0.gesture & DOUBLE_TAP_GESTURE) {
 		/* emulate power key press */
-		input_report_key(rmi4_data->input_dev, KEY_SLIDE, 1);
-		input_report_key(rmi4_data->input_dev, KEY_SLIDE, 0);
+		input_report_key(rmi4_data->input_dev, KEY_WAKEUP, 1);
+		input_report_key(rmi4_data->input_dev, KEY_WAKEUP, 0);
 		input_sync(rmi4_data->input_dev);
 
 		dev_dbg(&rmi4_data->i2c_client->dev,
