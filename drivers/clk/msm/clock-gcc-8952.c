@@ -1917,7 +1917,7 @@ static struct local_vote_clk gcc_blsp1_ahb_clk = {
 	.base = &virt_bases[GCC_BASE],
 	.c = {
 		.dbg_name = "gcc_blsp1_ahb_clk",
-		.ops = &clk_ops_vote,
+		.ops = &clk_ops_blsp1_ahb_vote,
 		CLK_INIT(gcc_blsp1_ahb_clk.c),
 	},
 };
