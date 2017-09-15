@@ -37,6 +37,12 @@
 		modem_mem: modem_region@0 {
 			reg = <0x0 0x86c00000 0x0 0x5600000>;
 		};
+
+		ramoops_mem: ramoops_region@0 {
+			compatible = "removed-dma-pool";
+			no-map;
+			reg = <0 0x1343e000 0x0 0x80000>;
+		};
 	};
 
 	aliases {
@@ -45,6 +51,20 @@
 };
 
 &soc {
+	ramoops {
+		compatible = "ramoops";
+		status = "ok";
+
+		android,ramoops-buffer-start = <0x1343e000>;
+		android,ramoops-buffer-size = <0x80000>;
+		android,ramoops-console-size = <0x40000>;
+		android,ramoops-pmsg-size = <0x20000>;
+		android,ramoops-record-size = <0x5000>;
+		android,ramoops-ftrace-size = <0x15000>;
+		android,ramoops-dump-oops = <0x1>;
+		linux,contiguous-region = <&ramoops_mem>;
+	};
+
 	i2c_4: i2c@78b8000 { /* BLSP1 QUP4 */
 		compatible = "qcom,i2c-msm-v2";
 		#address-cells = <1>;
