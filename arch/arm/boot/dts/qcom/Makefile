@@ -175,7 +175,9 @@ dtb-$(CONFIG_ARCH_MSM8937) += msm8937-rumi.dtb \
 	msm8937-pmi8950-karate.dtb \
 	msm8937-pmi8950-karatep.dtb \
 	msm8937-pmi8950-karate-row.dtb \
-	msm8937-pmi8950-karatep-row.dtb
+	msm8937-pmi8950-karatep-row.dtb \
+        karatep.dtb \
+        karatep-row.dtb
 
 dtb-$(CONFIG_ARCH_MSM8917) += msm8917-rumi.dtb \
 	apq8017-pmi8937-cdp.dtb \
