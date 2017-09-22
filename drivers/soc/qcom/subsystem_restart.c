@@ -1644,6 +1644,11 @@ struct subsys_device *subsys_register(struct subsys_desc *desc)
 	strlcpy(subsys->desc->fw_name, desc->name,
 			sizeof(subsys->desc->fw_name));
 
+#ifdef CONFIG_MACH_LENOVO
+	if (!strcmp(desc->name, "modem"))
+		subsys->restart_level = RESET_SUBSYS_COUPLED;
+#endif
+
 	subsys->notify = subsys_notif_add_subsys(desc->name);
 
 	snprintf(subsys->wlname, sizeof(subsys->wlname), "ssr(%s)", desc->name);
