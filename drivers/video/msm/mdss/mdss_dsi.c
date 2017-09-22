@@ -97,6 +97,17 @@ static void mdss_dsi_pm_qos_update_request(int val)
 static int mdss_dsi_pinctrl_set_state(struct mdss_dsi_ctrl_pdata *ctrl_pdata,
 					bool active);
 
+static int mdss_dsi_hndl_enable_te(struct mdss_dsi_ctrl_pdata *ctrl,
+				int enable)
+{
+	if (enable)
+		mdss_dsi_set_tear_on(ctrl);
+	else
+		mdss_dsi_set_tear_off(ctrl);
+
+	return 0;
+}
+
 static struct mdss_dsi_ctrl_pdata *mdss_dsi_get_ctrl(u32 ctrl_id)
 {
 	if (ctrl_id >= DSI_CTRL_MAX || !mdss_dsi_res)
@@ -2696,6 +2707,10 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 	case MDSS_EVENT_ENABLE_PARTIAL_ROI:
 		rc = mdss_dsi_ctl_partial_roi(pdata);
 		break;
+	case MDSS_EVENT_ENABLE_TE:
+		rc = mdss_dsi_hndl_enable_te(ctrl_pdata,
+				(int) (unsigned long) arg);
+		break;
 	case MDSS_EVENT_DSI_RESET_WRITE_PTR:
 		rc = mdss_dsi_reset_write_ptr(pdata);
 		break;
@@ -2795,6 +2810,33 @@ static struct device_node *mdss_dsi_pref_prim_panel(
 		pr_err("%s:can't find panel phandle\n", __func__);
 
 	return dsi_pan_node;
+}
+
+int mdss_dsi_ioctl_handler(struct mdss_panel_data *pdata, u32 cmd, void *arg)
+{
+	int rc = -ENOSYS;
+	struct msmfb_reg_access reg_access;
+
+	if (mdss_panel_is_power_off(pdata->panel_info.panel_power_state)) {
+		pr_err("%s: Panel is off\n", __func__);
+		return -EPERM;
+	}
+
+	switch (cmd) {
+	case MSMFB_REG_WRITE:
+	case MSMFB_REG_READ:
+		if (copy_from_user(&reg_access, arg, sizeof(reg_access)))
+			return -EFAULT;
+
+		rc = mdss_dsi_panel_ioctl_handler(pdata, cmd, arg);
+		break;
+	default:
+		pr_err("%s: unsupport ioctl =0x%x\n", __func__, cmd);
+		rc = -EFAULT;
+		break;
+	}
+
+	return rc;
 }
 
 /**
@@ -2943,6 +2985,13 @@ static struct device_node *mdss_dsi_config_panel(struct platform_device *pdev,
 		pr_warn("%s:%d:dsi specific cfg not present\n",
 			__func__, __LINE__);
 
+	/* Parse panel config */
+	rc = mdss_panel_parse_panel_config_dt(ctrl_pdata);
+	if (rc) {
+		pr_err("%s: failed to parse panel config dt, rc = %d\n",
+								__func__, rc);
+		return NULL;
+	}
 	/* find panel device node */
 	dsi_pan_node = mdss_dsi_find_panel_of_node(pdev, panel_cfg);
 	if (!dsi_pan_node) {
@@ -4249,6 +4298,10 @@ int dsi_panel_device_register(struct platform_device *ctrl_pdev,
 
 	pr_info("%s: Continuous splash %s\n", __func__,
 		pinfo->cont_splash_enabled ? "enabled" : "disabled");
+
+	if (pinfo->cont_splash_enabled &&
+		pinfo->forced_tx_mode_ftr_enabled)
+		mdss_dsi_panel_forced_tx_mode_set(pinfo, true);
 
 	rc = mdss_register_panel(ctrl_pdev, &(ctrl_pdata->panel_data));
 	if (rc) {

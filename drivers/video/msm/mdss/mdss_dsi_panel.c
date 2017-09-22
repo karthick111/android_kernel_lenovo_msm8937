@@ -22,14 +22,19 @@
 #include <linux/qpnp/pwm.h>
 #include <linux/err.h>
 #include <linux/string.h>
+#include <linux/uaccess.h>
+#include <linux/msm_mdp.h>
 
 #include "mdss_dsi.h"
 #ifdef TARGET_HW_MDSS_HDMI
 #include "mdss_dba_utils.h"
-#endif
+
+#define MDSS_PANEL_DEFAULT_VER 0xffffffffffffffff
+#define MDSS_PANEL_UNKNOWN_NAME "unknown"
 #define DT_CMD_HDR 6
 #define MIN_REFRESH_RATE 48
 #define DEFAULT_MDP_TRANSFER_TIME 14000
+#define DCS_CMD_GET_POWER_MODE 0x0A
 
 #define VSYNC_DELAY msecs_to_jiffies(17)
 
@@ -211,7 +216,7 @@ static void mdss_dsi_panel_cmds_send(struct mdss_dsi_ctrl_pdata *ctrl,
 
 static char led_pwm1[2] = {0x51, 0x0};	/* DTYPE_DCS_WRITE1 */
 static struct dsi_cmd_desc backlight_cmd = {
-	{DTYPE_DCS_WRITE1, 1, 0, 0, 1, sizeof(led_pwm1)},
+	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(led_pwm1)},
 	led_pwm1
 };
 
@@ -240,53 +245,38 @@ static void mdss_dsi_panel_bklt_dcs(struct mdss_dsi_ctrl_pdata *ctrl, int level)
 	mdss_dsi_cmdlist_put(ctrl, &cmdreq);
 }
 
-static void mdss_dsi_panel_set_idle_mode(struct mdss_panel_data *pdata,
-							bool enable)
+/*
+ * Note that: the following panel parameter related function must be called
+ * within mfd->panel_info->param_lock to avoid data mess-up caused by possible
+ * race condition between blank/unblank and parameter access.
+ */
+static int mdss_dsi_panel_set_param(struct mdss_panel_data *pdata,
+		u16 id, u16 val)
 {
-	struct mdss_dsi_ctrl_pdata *ctrl = NULL;
+	struct mdss_panel_info *pinfo = &pdata->panel_info;
+	struct dsi_panel_cmds *cmds;
+	struct mdss_dsi_ctrl_pdata *ctrl;
 
-	if (pdata == NULL) {
-		pr_err("%s: Invalid input data\n", __func__);
-		return;
+	ctrl = container_of(pdata, struct mdss_dsi_ctrl_pdata, panel_data);
+	if (!ctrl) {
+		pr_err("%s: ctrl is null\n", __func__);
+		return -EINVAL;
 	}
 
-	ctrl = container_of(pdata, struct mdss_dsi_ctrl_pdata,
-						panel_data);
-
-	pr_debug("%s: Idle (%d->%d)\n", __func__, ctrl->idle, enable);
-
-	if (ctrl->idle == enable)
-		return;
-
-	if (enable) {
-		if (ctrl->idle_on_cmds.cmd_cnt) {
-			mdss_dsi_panel_cmds_send(ctrl, &ctrl->idle_on_cmds,
-					CMD_REQ_COMMIT);
-			ctrl->idle = true;
-			pr_debug("Idle on\n");
-		}
-	} else {
-		if (ctrl->idle_off_cmds.cmd_cnt) {
-			mdss_dsi_panel_cmds_send(ctrl, &ctrl->idle_off_cmds,
-					CMD_REQ_COMMIT);
-			ctrl->idle = false;
-			pr_debug("Idle off\n");
-		}
-	}
-}
-
-static bool mdss_dsi_panel_get_idle_mode(struct mdss_panel_data *pdata)
-
-{
-	struct mdss_dsi_ctrl_pdata *ctrl = NULL;
-
-	if (pdata == NULL) {
-		pr_err("%s: Invalid input data\n", __func__);
+	if (!mdss_panel_param_is_supported(pinfo, id)) {
+		pr_debug("%s: id %d is disabled, ignore request\n",
+			__func__, id);
 		return 0;
 	}
-	ctrl = container_of(pdata, struct mdss_dsi_ctrl_pdata,
-						panel_data);
-	return ctrl->idle;
+
+	cmds = ctrl->param_cmds[id];
+	if (!cmds || !cmds[val].cmd_cnt) {
+		pr_warn("%s: value %d not supported for id %d\n",
+				__func__, val, id);
+		return -EINVAL;
+	}
+	mdss_dsi_panel_cmds_send(ctrl, &cmds[val], CMD_REQ_COMMIT);
+	return 0;
 }
 
 static int mdss_dsi_request_gpios(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
@@ -490,6 +480,34 @@ exit:
 	return rc;
 }
 
+static int mdss_dsi_get_pwr_mode(struct mdss_panel_data *pdata,
+			u8 *pwr_mode, bool hs_mode)
+{
+	struct mdss_dsi_ctrl_pdata *ctrl;
+	struct dcs_cmd_req cmdreq;
+
+	ctrl = container_of(pdata, struct mdss_dsi_ctrl_pdata, panel_data);
+
+	dcs_cmd[0] = DCS_CMD_GET_POWER_MODE;
+	dcs_cmd[1] = 0x00;
+	memset(&cmdreq, 0, sizeof(cmdreq));
+	cmdreq.cmds = &dcs_read_cmd;
+	cmdreq.cmds_cnt = 1;
+	cmdreq.flags = CMD_REQ_RX | CMD_REQ_COMMIT;
+	if (hs_mode)
+		cmdreq.flags |= CMD_REQ_HS_MODE;
+	cmdreq.rlen = 1;
+	cmdreq.rbuf = pwr_mode;
+	cmdreq.cb = NULL; /* call back */
+
+	if (mdss_dsi_cmdlist_put(ctrl, &cmdreq) != cmdreq.rlen)
+		pr_warn("%s: failed to read panel power mode\n", __func__);
+
+	pr_debug("%s: panel power mode = 0x%x\n", __func__, *pwr_mode);
+
+	return 0;
+}
+
 /**
  * mdss_dsi_roi_merge() -  merge two roi into single roi
  *
@@ -535,13 +553,74 @@ static int mdss_dsi_roi_merge(struct mdss_dsi_ctrl_pdata *ctrl,
 	return ans;
 }
 
+int mdss_panel_parse_panel_config_dt(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
+{
+	struct device_node *np;
+	const char *pname;
+	u32 panel_ver, tmp;
+	struct mdss_panel_config *pconf = &ctrl_pdata->panel_config;
+
+	/*
+	 * Currently, the LK only detects the panel_name and panel_ver from
+	 * the primary display/master display only
+	 */
+	if (ctrl_pdata->panel_data.panel_info.pdest == DISPLAY_2)
+		return 0;
+
+	np = of_find_node_by_path("/chosen");
+	/* Disable ESD only if the prop "mmi,esd" exists and is equal to 0 */
+	if (!of_property_read_u32(np, "mmi,esd", &tmp) && tmp == 0) {
+		pconf->esd_enable = false;
+		pr_warn("%s: ESD detection is disabled by UTAGS\n", __func__);
+	} else
+		pconf->esd_enable = true;
+
+	/* Enable bare board only if the prop "mmi,bare_board" exists */
+	pconf->bare_board = of_property_read_bool(np, "mmi,bare_board");
+
+	pconf->panel_ver = MDSS_PANEL_DEFAULT_VER;
+	of_property_read_u64(np, "mmi,panel_ver", &pconf->panel_ver);
+
+	pname = of_get_property(np, "mmi,panel_name", NULL);
+	if (!pname || strlen(pname) == 0) {
+		pr_warn("Failed to get mmi,panel_name\n");
+		strlcpy(pconf->panel_name, MDSS_PANEL_UNKNOWN_NAME,
+				sizeof(pconf->panel_name));
+	} else
+		strlcpy(pconf->panel_name, pname, sizeof(pconf->panel_name));
+
+	pr_info("%s: esd_enable=%d bare_board_bl=%d panel_name=%s\n",
+		__func__,
+		pconf->esd_enable,
+		pconf->bare_board,
+		pconf->panel_name);
+
+	panel_ver = (u32)pconf->panel_ver;
+	pr_info("%s: BL: panel=%s, manufacture_id(0xDA)= 0x%02X "
+		"controller_ver(0xDB)= 0x%02X controller_drv_ver(0XDC)= 0x%02X, "
+		"full=0x%016llX\n",
+		__func__,
+		pconf->panel_name,
+		panel_ver & 0xff, (panel_ver & 0xff00) >> 8,
+		(panel_ver & 0xff0000) >> 16,
+		pconf->panel_ver);
+
+	ctrl_pdata->panel_data.panel_info.panel_ver = panel_ver;
+	strlcpy(ctrl_pdata->panel_data.panel_info.panel_family_name,
+		pconf->panel_name,
+		sizeof(ctrl_pdata->panel_data.panel_info.panel_family_name));
+
+	of_node_put(np);
+
+	return 0;
+}
 static char caset[] = {0x2a, 0x00, 0x00, 0x03, 0x00};	/* DTYPE_DCS_LWRITE */
 static char paset[] = {0x2b, 0x00, 0x00, 0x05, 0x00};	/* DTYPE_DCS_LWRITE */
 
 /* pack into one frame before sent */
 static struct dsi_cmd_desc set_col_page_addr_cmd[] = {
-	{{DTYPE_DCS_LWRITE, 0, 0, 0, 1, sizeof(caset)}, caset},	/* packed */
-	{{DTYPE_DCS_LWRITE, 1, 0, 0, 1, sizeof(paset)}, paset},
+	{{DTYPE_DCS_LWRITE, 0, 0, 0, 0, sizeof(caset)}, caset},	/* packed */
+	{{DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(paset)}, paset},
 };
 
 static void mdss_dsi_send_col_page_addr(struct mdss_dsi_ctrl_pdata *ctrl,
@@ -833,21 +912,20 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 	}
 }
 
-#ifdef TARGET_HW_MDSS_HDMI
-static void mdss_dsi_panel_on_hdmi(struct mdss_dsi_ctrl_pdata *ctrl,
-			struct mdss_panel_info *pinfo)
+void mdss_dsi_panel_forced_tx_mode_set(struct mdss_panel_info *pinfo,
+					bool enable)
 {
-	if (ctrl->ds_registered)
-		mdss_dba_utils_video_on(pinfo->dba_data, pinfo);
+	if (!pinfo->forced_tx_mode_ftr_enabled)
+		return;
+
+	pinfo->forced_tx_mode_state = (enable ?
+				pinfo->forced_tx_mode_ftr_enabled : 0);
 }
-#else
-static void mdss_dsi_panel_on_hdmi(struct mdss_dsi_ctrl_pdata *ctrl,
-			struct mdss_panel_info *pinfo)
+
+u32 mdss_dsi_panel_forced_tx_mode_get(struct mdss_panel_info *pinfo)
 {
-	(void)(*ctrl);
-	(void)(*pinfo);
+	return pinfo->forced_tx_mode_state;
 }
-#endif
 
 static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 {
@@ -855,6 +933,8 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 	struct mdss_panel_info *pinfo;
 	struct dsi_panel_cmds *on_cmds;
 	int ret = 0;
+	u8 pwr_mode = 0;
+	static int panel_recovery_retry;
 
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
@@ -872,6 +952,11 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 			goto end;
 	}
 
+	if (ctrl->panel_config.bare_board) {
+		pr_warn("%s: This is bare_board configuration\n", __func__);
+		goto end;
+	}
+
 	on_cmds = &ctrl->on_cmds;
 
 	if ((pinfo->mipi.dms_mode == DYNAMIC_MODE_SWITCH_IMMEDIATE) &&
@@ -887,12 +972,22 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 	if (pinfo->compression_mode == COMPRESSION_DSC)
 		mdss_dsi_panel_dsc_pps_send(ctrl, pinfo);
 
-	mdss_dsi_panel_on_hdmi(ctrl, pinfo);
+	if (ctrl->ds_registered)
+		mdss_dba_utils_video_on(pinfo->dba_data, pinfo);
+	mdss_dsi_get_pwr_mode(pdata, &pwr_mode, false);
+	if (pinfo->disp_on_check_val != pwr_mode) {
+		pr_err("%s: Display failure: read = 0x%x, expected = 0x%x\n",
+			__func__, pwr_mode, pinfo->disp_on_check_val);
+		if (pdata->panel_info.panel_dead)
+			pr_err("%s: Panel recovery FAILED!!\n", __func__);
 
-	/* Ensure low persistence mode is set as before */
-	mdss_dsi_panel_apply_display_setting(pdata, pinfo->persist_mode);
-
+		pdata->panel_info.panel_dead = true;
+	} else
+		panel_recovery_retry = 0;
 end:
+	if (pinfo->forced_tx_mode_ftr_enabled)
+		mdss_dsi_panel_forced_tx_mode_set(pinfo, true);
+
 	pr_debug("%s:-\n", __func__);
 	return ret;
 }
@@ -987,6 +1082,9 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 		if (ctrl->ndx != DSI_CTRL_LEFT)
 			goto end;
 	}
+
+	if (pinfo->forced_tx_mode_ftr_enabled)
+		mdss_dsi_panel_forced_tx_mode_set(pinfo, false);
 
 	if (ctrl->off_cmds.cmd_cnt)
 		mdss_dsi_panel_cmds_send(ctrl, &ctrl->off_cmds, CMD_REQ_COMMIT);
@@ -1109,6 +1207,11 @@ static int mdss_dsi_parse_dcs_cmds(struct device_node *np,
 		dchdr = (struct dsi_ctrl_hdr *)bp;
 		len -= sizeof(*dchdr);
 		bp += sizeof(*dchdr);
+		if ((dchdr->wait != 0 || i == (cnt - 1)) && dchdr->last == 0) {
+			pr_warn("%s: correct \"last\" flag of DSI cmd 0x%02X of %s\n",
+				__func__, *bp, cmd_key);
+			dchdr->last = 1;
+		}
 		pcmds->cmds[i].dchdr = *dchdr;
 		pcmds->cmds[i].payload = bp;
 		bp += dchdr->dlen;
@@ -1136,6 +1239,97 @@ exit_free:
 	return -ENOMEM;
 }
 
+void mdss_dsi_panel_parse_forced_tx_mode(struct device_node *np,
+					struct mdss_panel_info *pinfo)
+{
+	const char *data;
+
+	pinfo->forced_tx_mode_ftr_enabled = 0;
+	pinfo->forced_tx_mode_state = 0;
+	data = of_get_property(np, "qcom,mdss-dsi-force-tx-mode", NULL);
+	if (data) {
+		if (!strcmp(data, "dsi_hs_mode"))
+			pinfo->forced_tx_mode_ftr_enabled = CMD_REQ_HS_MODE;
+		else
+			pinfo->forced_tx_mode_ftr_enabled = CMD_REQ_LP_MODE;
+	}
+}
+static struct panel_param_val_map hbm_map[HBM_STATE_NUM] = {
+	{"0", "qcom,mdss-dsi-hbm-off-command"},
+	{"1", "qcom,mdss-dsi-hbm-on-command"},
+};
+static struct panel_param_val_map acl_map[ACL_STATE_NUM] = {
+	{"0", "qcom,mdss-dsi-acl-off-command"},
+	{"1", "qcom,mdss-dsi-acl-on-command"},
+};
+static struct panel_param_val_map seed_map[SEED_STATE_NUM] = {
+	{"VBT", "qcom,mdss-dsi-seed-off-command"},
+	{"STD", "qcom,mdss-dsi-seed-on-command"},
+};
+static struct panel_param mdss_dsi_panel_param[PARAM_ID_NUM] = {
+	{"HBM", hbm_map, HBM_STATE_NUM, HBM_OFF_STATE, HBM_OFF_STATE, false},
+	{"ACL", acl_map, ACL_STATE_NUM, ACL_OFF_STATE, ACL_OFF_STATE, false},
+	{"SEED", seed_map, SEED_STATE_NUM, SEED_OFF_STATE, SEED_OFF_STATE, false},
+};
+static int mdss_panel_parse_param_prop(struct device_node *np,
+				struct mdss_panel_info *pinfo,
+				struct mdss_dsi_ctrl_pdata *ctrl)
+{
+	int i, j, cmd_num, rc = 0;
+	struct panel_param *param;
+	struct dsi_panel_cmds *cmds;
+	char *prop;
+
+	pinfo->hbm_restore = false;
+
+	for (i = 0; i < ARRAY_SIZE(mdss_dsi_panel_param); i++) {
+		param = &mdss_dsi_panel_param[i];
+		cmds = kcalloc(param->val_max, sizeof(struct dsi_panel_cmds),
+				GFP_KERNEL);
+		if (cmds == NULL) {
+			rc = -ENOMEM;
+			goto err;
+		}
+		ctrl->param_cmds[i] = cmds;
+		cmd_num = 0;
+
+		for (j = 0; j < param->val_max; j++) {
+			prop = param->val_map[j].prop;
+			if (!prop || !of_get_property(np, prop, NULL))
+				continue;
+			rc = mdss_dsi_parse_dcs_cmds(np,
+					&cmds[j], prop, NULL);
+			if (rc) {
+				pr_err("%s: failed to read prop %s\n",
+					__func__, prop);
+				goto err;
+			}
+			if (cmds[j].cmd_cnt)
+				cmd_num++;
+		}
+
+		if (cmd_num == 0) {
+			kfree(ctrl->param_cmds[i]);
+			ctrl->param_cmds[i] = NULL;
+			continue;
+		}
+
+		param->is_supported = true;
+		pinfo->param[i] = param;
+		pr_info("%s: %s feature enabled with %d dt cmds\n",
+				__func__, param->param_name, cmd_num);
+	}
+
+	return rc;
+err:
+	for (i = 0; i < ARRAY_SIZE(mdss_dsi_panel_param); i++) {
+		kfree(ctrl->param_cmds[i]);
+		ctrl->param_cmds[i] = NULL;
+		pinfo->param[i] = NULL;
+		mdss_dsi_panel_param[i].is_supported = false;
+	}
+	return rc;
+}
 
 int mdss_panel_get_dst_fmt(u32 bpp, char mipi_mode, u32 pixel_packing,
 				char *dst_format)
@@ -1646,7 +1840,6 @@ static void mdss_panel_parse_te_params(struct device_node *np,
 	rc = of_property_read_u32
 		(np, "qcom,mdss-tear-check-rd-ptr-trigger-intr", &tmp);
 	te->rd_ptr_irq = (!rc ? tmp : timing->yres + 1);
-	te->wr_ptr_irq = 0;
 }
 
 
@@ -2013,6 +2206,8 @@ static int mdss_dsi_parse_panel_features(struct device_node *np,
 	struct mdss_dsi_ctrl_pdata *ctrl)
 {
 	struct mdss_panel_info *pinfo;
+	struct mdss_panel_config *pcfg;
+	int rc;
 
 	if (!np || !ctrl) {
 		pr_err("%s: Invalid arguments\n", __func__);
@@ -2020,6 +2215,7 @@ static int mdss_dsi_parse_panel_features(struct device_node *np,
 	}
 
 	pinfo = &ctrl->panel_data.panel_info;
+	pcfg = &ctrl->panel_config;
 
 	pinfo->partial_update_supported = of_property_read_bool(np,
 		"qcom,partial-update-enabled");
@@ -2056,12 +2252,25 @@ static int mdss_dsi_parse_panel_features(struct device_node *np,
 	pinfo->allow_phy_power_off = of_property_read_bool(np,
 		"qcom,panel-allow-phy-poweroff");
 
-	mdss_dsi_parse_esd_params(np, ctrl);
+	if (pcfg->bare_board || !pcfg->esd_enable) {
+		pinfo->esd_check_enabled = false;
+		pr_info("%s: ESD check disabled by bootloader panel config, bare_board = %d, esd_enable = %d\n",
+				__func__, pcfg->bare_board, pcfg->esd_enable);
+	} else
+		mdss_dsi_parse_esd_params(np, ctrl);
 
 	if (pinfo->panel_ack_disabled && pinfo->esd_check_enabled) {
 		pr_warn("ESD should not be enabled if panel ACK is disabled\n");
 		pinfo->esd_check_enabled = false;
 	}
+
+	rc = of_property_read_u32(np,
+				"qcom,mdss-dsi-panel-on-check-value",
+				&pinfo->disp_on_check_val);
+	if (rc)  pinfo->disp_on_check_val = 0x9c;
+
+	pinfo->no_panel_read_support = of_property_read_bool(np,
+					"qcom,mdss-dsi-no-panel-read-support");
 
 	if (ctrl->disp_en_gpio <= 0) {
 		ctrl->disp_en_gpio = of_get_named_gpio(
@@ -2072,6 +2281,7 @@ static int mdss_dsi_parse_panel_features(struct device_node *np,
 			pr_debug("%s:%d, Disp_en gpio not specified\n",
 					__func__, __LINE__);
 	}
+	mdss_dsi_panel_parse_forced_tx_mode(np, pinfo);
 
 	mdss_dsi_parse_dcs_cmds(np, &ctrl->lp_on_cmds,
 			"qcom,mdss-dsi-lp-mode-on", NULL);
@@ -2823,14 +3033,195 @@ static int mdss_panel_parse_dt(struct device_node *np,
 
 	mdss_dsi_parse_dfps_config(np, ctrl_pdata);
 
-	rc = mdss_panel_parse_dt_hdmi(np, ctrl_pdata);
-	if (rc)
-		goto error;
+	pinfo->is_dba_panel = of_property_read_bool(np,
+			"qcom,dba-panel");
+
+	if (mdss_panel_parse_param_prop(np, pinfo, ctrl_pdata))
+		pr_err("Error parsing panel parameter properties\n");
+	if (pinfo->is_dba_panel) {
+		bridge_chip_name = of_get_property(np,
+			"qcom,bridge-name", &len);
+		if (!bridge_chip_name || len <= 0) {
+			pr_err("%s:%d Unable to read qcom,bridge_name, data=%pK,len=%d\n",
+				__func__, __LINE__, bridge_chip_name, len);
+			rc = -EINVAL;
+			goto error;
+		}
+		strlcpy(ctrl_pdata->bridge_name, bridge_chip_name,
+			MSM_DBA_CHIP_NAME_MAX_LEN);
+	}
 
 	return 0;
 
 error:
 	return -EINVAL;
+}
+static int mdss_dsi_panel_reg_read(struct mdss_panel_data *pdata,
+				u8 reg, size_t size, u8 *buffer, bool hs_mode)
+{
+	int ret;
+	struct dcs_cmd_req cmdreq;
+	struct mdss_dsi_ctrl_pdata *ctrl = NULL;
+	struct mdss_panel_info *pinfo;
+	struct dsi_cmd_desc reg_read_cmd = {
+		.dchdr.dtype = DTYPE_DCS_READ,
+		.dchdr.last = 1,
+		.dchdr.vc = 0,
+		.dchdr.ack = 1,
+		.dchdr.wait = 1,
+		.dchdr.dlen = 1,
+		.payload = &reg
+	};
+
+	if (pdata == NULL) {
+		pr_err("%s: Invalid input data\n", __func__);
+		return -EINVAL;
+	}
+
+	if (size > MDSS_DSI_LEN) {
+		pr_warn("%s: size %zu, max rx length is %d.\n", __func__,
+							size, MDSS_DSI_LEN);
+		return -EINVAL;
+	}
+
+	ctrl = container_of(pdata, struct mdss_dsi_ctrl_pdata, panel_data);
+	pr_debug("%s: Reading %zu bytes from 0x%02x\n", __func__, size, reg);
+
+	if (ctrl) {
+		pinfo = &ctrl->panel_data.panel_info;
+		if (pinfo->no_panel_read_support) {
+			pr_warn("%s: This panel doesn't support read data\n",
+							__func__);
+			return -EINVAL;
+		}
+	}
+
+	memset(&cmdreq, 0, sizeof(cmdreq));
+	cmdreq.cmds = &reg_read_cmd;
+	cmdreq.cmds_cnt = 1;
+	cmdreq.flags = CMD_REQ_RX | CMD_REQ_COMMIT;
+	if (hs_mode)
+		cmdreq.flags |= CMD_REQ_HS_MODE;
+	cmdreq.rlen = size;
+	cmdreq.cb = NULL; /* call back */
+	cmdreq.rbuf = kmalloc(MDSS_DSI_LEN, GFP_KERNEL);
+	if (!cmdreq.rbuf) {
+		ret = -ENOMEM;
+		goto err1;
+	}
+
+	ret = mdss_dsi_cmdlist_put(ctrl, &cmdreq);
+	if (ret != size) {
+		pr_err("%s: Error reading %zu bytes from reg 0x%02x. ret=0x%x\n",
+				__func__, size, (unsigned int) reg, ret);
+		ret = -EFAULT;
+	} else {
+		memcpy(buffer, cmdreq.rbuf, size);
+		ret = 0;
+	}
+
+	kfree(cmdreq.rbuf);
+err1:
+	return ret;
+}
+
+static int mdss_dsi_panel_reg_write(struct mdss_panel_data *pdata,
+				size_t size, u8 *buffer, bool hs_mode)
+{
+	int ret = 0;
+	struct dcs_cmd_req cmdreq;
+	struct mdss_dsi_ctrl_pdata *ctrl = NULL;
+	struct dsi_cmd_desc reg_write_cmd = {
+		.dchdr.dtype = DTYPE_DCS_LWRITE,
+		.dchdr.last = 1,
+		.dchdr.vc = 0,
+		.dchdr.ack = 0,
+		.dchdr.wait = 0,
+		.dchdr.dlen = size,
+		.payload = buffer
+	};
+
+	if (pdata == NULL) {
+		pr_err("%s: Invalid input data\n", __func__);
+		return -EINVAL;
+	}
+
+	/* Limit size to 32 to match with disp_util size checking */
+	if (size > 32) {
+		pr_err("%s: size is larger than 32 bytes. size=%zu\n",
+							__func__, size);
+		return -EINVAL;
+	}
+
+	ctrl = container_of(pdata, struct mdss_dsi_ctrl_pdata, panel_data);
+	pr_debug("%s: Writing %zu bytes to 0x%02x\n",
+		__func__, size, buffer[0]);
+	memset(&cmdreq, 0, sizeof(cmdreq));
+	cmdreq.cmds = &reg_write_cmd;
+	cmdreq.cmds_cnt = 1;
+	cmdreq.flags = CMD_REQ_COMMIT;
+	if (hs_mode)
+		cmdreq.flags |= CMD_REQ_HS_MODE;
+	cmdreq.rlen = 0;
+	cmdreq.cb = NULL;
+
+	ret = mdss_dsi_cmdlist_put(ctrl, &cmdreq);
+	if (ret <= 0) {
+		pr_err("%s: Failed writing %zu bytes to 0x%02x. Ret=0x%x\n",
+					__func__, size, buffer[0], ret);
+		ret = -EFAULT;
+	} else
+		ret = 0;
+
+
+	return ret;
+}
+
+int mdss_dsi_panel_ioctl_handler(struct mdss_panel_data *pdata,
+							u32 cmd, void *arg)
+{
+	int rc = -EINVAL;
+	struct msmfb_reg_access reg_access;
+	u8 *reg_access_buf;
+
+	if (copy_from_user(&reg_access, arg, sizeof(reg_access)))
+		return -EFAULT;
+
+	reg_access_buf = kmalloc(reg_access.buffer_size + 1, GFP_KERNEL);
+	if (reg_access_buf == NULL)
+		return -ENOMEM;
+
+	switch (cmd) {
+	case MSMFB_REG_WRITE:
+		reg_access_buf[0] = reg_access.address;
+		if (copy_from_user(&reg_access_buf[1], reg_access.buffer,
+						reg_access.buffer_size))
+			rc = -EFAULT;
+		else
+			rc = mdss_dsi_panel_reg_write(pdata,
+						reg_access.buffer_size + 1,
+						reg_access_buf,
+						reg_access.use_hs_mode);
+		break;
+	case MSMFB_REG_READ:
+		rc = mdss_dsi_panel_reg_read(pdata, reg_access.address,
+					reg_access.buffer_size,
+					reg_access_buf,
+					reg_access.use_hs_mode);
+		if ((rc == 0) && (copy_to_user(reg_access.buffer,
+						reg_access_buf,
+						reg_access.buffer_size)))
+			rc = -EFAULT;
+		break;
+	default:
+		pr_err("%s: unsupport ioctl =0x%x\n", __func__, cmd);
+		rc = -EFAULT;
+		break;
+	}
+
+	kfree(reg_access_buf);
+
+	return rc;
 }
 
 int mdss_dsi_panel_init(struct device_node *node,
@@ -2877,6 +3268,7 @@ int mdss_dsi_panel_init(struct device_node *node,
 	ctrl_pdata->panel_data.apply_display_setting =
 			mdss_dsi_panel_apply_display_setting;
 	ctrl_pdata->switch_mode = mdss_dsi_panel_switch_mode;
-	ctrl_pdata->panel_data.get_idle = mdss_dsi_panel_get_idle_mode;
+	ctrl_pdata->panel_data.set_param = mdss_dsi_panel_set_param;
+
 	return 0;
 }

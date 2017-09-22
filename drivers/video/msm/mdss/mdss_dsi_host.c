@@ -1205,7 +1205,9 @@ int mdss_dsi_reg_status_check(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 		else if (sctrl_pdata)
 			ret = ctrl_pdata->check_read_status(sctrl_pdata);
 	} else {
-		pr_err("%s: Read status register returned error\n", __func__);
+		pr_err("%s: Read status register returned error, ret = %d\n",
+			__func__, ret);
+		ret = 0;
 	}
 
 	mdss_dsi_clk_ctrl(ctrl_pdata, ctrl_pdata->dsi_clk_handle,
@@ -2528,6 +2530,11 @@ int mdss_dsi_cmdlist_rx(struct mdss_dsi_ctrl_pdata *ctrl,
 				(req->flags & CMD_REQ_DMA_TPG));
 		memcpy(req->rbuf, rp->data, rp->len);
 		ctrl->rx_len = len;
+		if (len != req->rlen) {
+			pr_err("%s: Tried to read %d bytes, actually read %d "
+					"bytes\n", __func__, req->rlen, len);
+			len = 0;
+		}
 	} else {
 		pr_err("%s: No rx buffer provided\n", __func__);
 	}
@@ -2591,13 +2598,14 @@ int mdss_dsi_cmdlist_commit(struct mdss_dsi_ctrl_pdata *ctrl, int from_mdp)
 	int rc = 0;
 	bool hs_req = false;
 	bool cmd_mutex_acquired = false;
+	u32 forced_mode;
 
+	pinfo = &ctrl->panel_data.panel_info;
 	if (from_mdp) {	/* from mdp kickoff */
 		if (!ctrl->burst_mode_enabled) {
 			mutex_lock(&ctrl->cmd_mutex);
 			cmd_mutex_acquired = true;
 		}
-		pinfo = &ctrl->panel_data.panel_info;
 		if (pinfo->partial_update_enabled)
 			roi = &pinfo->roi;
 	}
@@ -2611,8 +2619,16 @@ int mdss_dsi_cmdlist_commit(struct mdss_dsi_ctrl_pdata *ctrl, int from_mdp)
 	MDSS_XLOG(ctrl->ndx, from_mdp, ctrl->mdp_busy, current->pid,
 							XLOG_FUNC_ENTRY);
 
-	if (req && (req->flags & CMD_REQ_HS_MODE))
-		hs_req = true;
+	if (req) {
+		forced_mode = mdss_dsi_panel_forced_tx_mode_get(pinfo);
+		if (forced_mode) {
+			req->flags &= ~(CMD_REQ_HS_MODE | CMD_REQ_LP_MODE);
+			req->flags |= forced_mode;
+		}
+
+		if (req && (req->flags & CMD_REQ_HS_MODE))
+			hs_req = true;
+	}
 
 	if ((!ctrl->burst_mode_enabled) || from_mdp) {
 		/* make sure dsi_cmd_mdp is idle */
