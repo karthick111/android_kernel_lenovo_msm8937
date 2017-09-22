@@ -79,6 +79,10 @@
 	_adc_val = (u8)((_current) * 100 / 976);	\
 }
 
+#ifdef CONFIG_MACH_LENOVO
+#define FG_HEATBEAT_WORK
+#endif
+
 /* Debug Flag Definitions */
 enum {
 	FG_SPMI_DEBUG_WRITES		= BIT(0), /* Show SPMI writes */
@@ -504,6 +508,9 @@ struct fg_chip {
 	struct work_struct	charge_full_work;
 	struct work_struct	gain_comp_work;
 	struct work_struct	bcl_hi_power_work;
+#ifdef FG_HEATBEAT_WORK
+	struct delayed_work	battery_heatbeat_work;
+#endif
 	struct power_supply	*batt_psy;
 	struct power_supply	*usb_psy;
 	struct power_supply	*dc_psy;
@@ -2258,8 +2265,40 @@ static int get_prop_capacity(struct fg_chip *chip)
 	if (chip->battery_missing)
 		return MISSING_CAPACITY;
 
-	if (!chip->profile_loaded && !chip->use_otp_profile)
+	if (!chip->profile_loaded && !chip->use_otp_profile) {
+#ifdef CONFIG_MACH_LENOVO
+		static int shutdown_soc = -22;
+		int j;
+		u8 reg_soc[4];
+		int64_t temp;
+
+		if (shutdown_soc >= 0) {
+			pr_info("using pre shutdown soc %d\n", shutdown_soc);
+			return shutdown_soc;
+		}
+
+		rc = fg_mem_read(chip, reg_soc,
+				fg_data[FG_DATA_BATT_SOC].address,
+				fg_data[FG_DATA_BATT_SOC].len,
+				fg_data[FG_DATA_BATT_SOC].offset, 0);
+		if (rc) {
+			pr_err("Failed to update soc sram data, using default soc\n");
+			return DEFAULT_CAPACITY;
+		}
+
+		temp = 0;
+		for (j = 0; j < fg_data[FG_DATA_BATT_SOC].len; j++)
+			temp |= reg_soc[j] << (8 * j);
+
+		shutdown_soc = div64_s64((temp * 10000), FULL_PERCENT_3B) / 100;
+		pr_info("bat profile not ready, using shutdown soc %d\n",
+				shutdown_soc);
+
+		return shutdown_soc;
+#else
 		return DEFAULT_CAPACITY;
+#endif
+	}
 
 	if (chip->charge_full)
 		return FULL_CAPACITY;
@@ -3315,6 +3354,31 @@ static void battery_age_work(struct work_struct *work)
 
 	estimate_battery_age(chip, &chip->actual_cap_uah);
 }
+
+#ifdef FG_HEATBEAT_WORK
+static void battery_heatbeat_work(struct work_struct *work)
+{
+	struct fg_chip *chip = container_of(work, struct fg_chip,
+			battery_heatbeat_work.work);
+	int soc, vol, cur, batt_temp;
+	static int pre_soc = -1, pre_batt_temp = -1;
+
+	soc = get_prop_capacity(chip);
+	vol = get_sram_prop_now(chip, FG_DATA_VOLTAGE);
+	cur = get_sram_prop_now(chip, FG_DATA_CURRENT);
+	batt_temp = get_sram_prop_now(chip, FG_DATA_BATT_TEMP);
+
+	pr_debug("soc %d pre_soc %d vol %d cur %d batt_temp %d\n",
+			soc, pre_soc, vol, cur, batt_temp);
+	if ((soc!=pre_soc) || (batt_temp != pre_batt_temp)) {
+		pre_soc = soc;
+		pre_batt_temp = batt_temp;
+		power_supply_changed(&chip->bms_psy);
+	}
+
+	schedule_delayed_work(&chip->battery_heatbeat_work, (HZ * 5));
+}
+#endif
 
 static int correction_times[] = {
 	1470,
@@ -6310,7 +6374,11 @@ fail:
 #define PROFILE_COMPARE_LEN		32
 #define THERMAL_COEFF_ADDR		0x444
 #define THERMAL_COEFF_OFFSET		0x2
+#ifdef CONFIG_MACH_LENOVO
+#define BATTERY_PSY_WAIT_MS		1000
+#else
 #define BATTERY_PSY_WAIT_MS		2000
+#endif
 static int fg_batt_profile_init(struct fg_chip *chip)
 {
 	int rc = 0, ret;
@@ -8676,6 +8744,11 @@ static void delayed_init_work(struct work_struct *work)
 	chip->otg_present = is_otg_present(chip);
 	chip->init_done = true;
 	pr_debug("FG: HW_init success\n");
+
+#ifdef FG_HEATBEAT_WORK
+	schedule_delayed_work(&chip->battery_heatbeat_work, 0);
+#endif
+
 	return;
 done:
 	fg_cleanup(chip);
@@ -8768,6 +8841,10 @@ static int fg_probe(struct spmi_device *spmi)
 	INIT_WORK(&chip->slope_limiter_work, slope_limiter_work);
 	INIT_WORK(&chip->dischg_gain_work, discharge_gain_work);
 	INIT_WORK(&chip->cc_soc_store_work, cc_soc_store_work);
+#ifdef FG_HEATBEAT_WORK
+	INIT_DELAYED_WORK(&chip->battery_heatbeat_work, battery_heatbeat_work);
+#endif
+
 	alarm_init(&chip->fg_cap_learning_alarm, ALARM_BOOTTIME,
 			fg_cap_learning_alarm_cb);
 	alarm_init(&chip->hard_jeita_alarm, ALARM_BOOTTIME,
