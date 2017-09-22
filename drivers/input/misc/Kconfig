@@ -264,6 +264,16 @@ config INPUT_APANEL
 	 To compile this driver as a module, choose M here: the module will
 	 be called apanel.
 
+config INPUT_EPL8802
+	tristate "EPL8802 proximity and light sensor"
+	depends on I2C
+	help
+	  Say Y here if you want to support EPL8802
+	  connected via an I2C bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called EPL8802.
+
 config INPUT_GP2A
 	tristate "Sharp GP2AP002A00F I2C Proximity/Opto sensor driver"
 	depends on I2C
