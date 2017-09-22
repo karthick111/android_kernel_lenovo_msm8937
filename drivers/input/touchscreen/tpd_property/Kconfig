@@ -1,0 +1,7 @@
+config TOUCHSCREEN_PROPERTY
+	tristate "Touchscreen common interface"
+	depends on I2C
+	help
+	  Say Y here if you have to need touchpanel common interface
+
+	  If unsure, say N.
