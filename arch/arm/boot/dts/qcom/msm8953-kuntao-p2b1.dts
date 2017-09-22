@@ -1,0 +1,60 @@
+/*
+ * Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+/dts-v1/;
+
+#include "msm8953.dtsi"
+#include "msm-pmi8950.dtsi"
+#include "kuntao/msm8953-kuntao.dtsi"
+
+/ {
+	model = "Kuntao p2b1";
+	qcom,board-id = <0x41 0x82b1>, <0x41 0x83b0>;
+};
+
+&soc {
+	tlmm: pinctrl@1000000 {
+		tlmm_gpio_key {
+			gpio_key_active: gpio_key_active {
+				mux {
+					pins = "gpio85", "gpio86", "gpio132";
+				};
+
+				config {
+					pins = "gpio85", "gpio86", "gpio132";
+				};
+			};
+
+			gpio_key_suspend: gpio_key_suspend {
+				mux {
+					pins = "gpio85", "gpio86", "gpio132";
+				};
+
+				config {
+					pins = "gpio85", "gpio86", "gpio132";
+				};
+			};
+		};
+	};
+
+	gpio_keys {
+		homepage {
+			label = "homepage";
+			gpios = <&tlmm 132 0x1>;
+			linux,input-type = <1>;
+			linux,code = <172>;
+			debounce-interval = <15>;
+			gpio-key,wakeup;
+		};
+	};
+};

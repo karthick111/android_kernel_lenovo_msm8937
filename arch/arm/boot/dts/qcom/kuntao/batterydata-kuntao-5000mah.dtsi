@@ -1,0 +1,59 @@
+/* Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+qcom,kuntao-5000mah {
+	qcom,max-voltage-uv = <4400000>;
+	qcom,nom-batt-capacity-mah = <5000>;
+	qcom,batt-id-kohm = <246>;
+	qcom,battery-beta = <3435>;
+	qcom,battery-type = "2380449_lenovo_5000mah_averaged_masterslave_apr11th2016";
+	qcom,chg-rslow-comp-c1 = <2453204>;
+	qcom,chg-rslow-comp-c2 = <2912813>;
+	qcom,chg-rs-to-rslow = <771668>;
+	qcom,chg-rslow-comp-thr = <0x99>;
+	qcom,checksum = <0xB32B>;
+	qcom,gui-version = "PMI8950GUI - 2.0.0.15";
+	qcom,fg-profile-data = [
+		E4 83 F9 7C
+		35 81 7C 77
+		5B 83 0A 67
+		A2 83 91 8E
+		5C 82 35 98
+		E1 B5 86 C1
+		52 14 13 88
+		F1 7E 96 82
+		00 7D 4A 83
+		F8 71 DB 74
+		BC 6D 5A 82
+		44 99 6F BC
+		04 C9 5F 0D
+		81 14 87 59
+		14 70 29 FC
+		17 36 B1 3F
+		27 38 00 00
+		21 4C AE 38
+		93 41 00 00
+		00 00 00 00
+		00 00 00 00
+		51 6B 00 6A
+		15 72 1E 89
+		6C 74 98 69
+		DF 6A DF 81
+		BB 6E 8D 63
+		AA 75 8B A1
+		1B F1 61 FB
+		5F A0 71 0C
+		28 00 FF 36
+		F0 11 30 03
+		00 00 00 0C
+	];
+};
