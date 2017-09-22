@@ -333,7 +333,11 @@ int dwc3_send_gadget_ep_cmd(struct dwc3 *dwc, unsigned ep,
 		unsigned cmd, struct dwc3_gadget_ep_cmd_params *params)
 {
 	struct dwc3_ep		*dep = dwc->eps[ep];
+#ifdef CONFIG_MACH_LENOVO
+	u32			timeout = 50000;
+#else
 	u32			timeout = 3000;
+#endif
 	u32			reg;
 
 	trace_dwc3_gadget_ep_cmd(dep, cmd, params);
@@ -3632,6 +3636,14 @@ irqreturn_t dwc3_interrupt(int irq, void *_dwc)
 		spin_unlock_irqrestore(&dwc->lock, flags);
 		return IRQ_HANDLED;
 	}
+
+#ifdef CONFIG_MACH_LENOVO
+	if (!dwc->ev_buffs) {
+		pr_err("the usb dwc3 is not initialized\n");
+		spin_unlock(&dwc->lock);
+		return IRQ_HANDLED;
+	}
+#endif
 
 	for (i = 0; i < dwc->num_normal_event_buffers; i++) {
 		irqreturn_t status;

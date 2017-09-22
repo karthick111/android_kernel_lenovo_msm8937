@@ -230,7 +230,10 @@ struct dwc3_msm {
 	enum usb_otg_state	otg_state;
 	enum usb_chg_state	chg_state;
 	int			pmic_id_irq;
-	enum dwc3_perf_mode     mode;
+#ifdef CONFIG_MACH_LENOVO
+	int 			usb_id_gpio;
+#endif
+	struct work_struct	bus_vote_w;
 	unsigned int		bus_vote;
 	u32			bus_perf_client;
 	struct msm_bus_scale_pdata	*bus_scale_table;
@@ -272,6 +275,12 @@ struct dwc3_msm {
 	struct delayed_work     perf_vote_work;
 	enum dwc3_perf_mode	curr_mode;
 };
+
+#ifdef CONFIG_MACH_LENOVO
+static bool host_mode_disable;
+static bool host_id_state;
+static struct dwc3_msm *the_msm_dwc3;
+#endif
 
 #define USB_HSPHY_3P3_VOL_MIN		3050000 /* uV */
 #define USB_HSPHY_3P3_VOL_MAX		3300000 /* uV */
@@ -1975,6 +1984,9 @@ static int dwc3_msm_prepare_suspend(struct dwc3_msm *mdwc)
 
 	if (!(reg & PWR_EVNT_LPM_IN_L2_MASK)) {
 		dev_err(mdwc->dev, "could not transition HS PHY to L2\n");
+#ifdef CONFIG_MACH_LENOVO
+	}
+#endif
 		dbg_event(0xFF, "PWR_EVNT_LPM",
 			dwc3_msm_read_reg(mdwc->base, PWR_EVNT_IRQ_STAT_REG));
 		dbg_event(0xFF, "QUSB_STS",
@@ -1986,7 +1998,9 @@ static int dwc3_msm_prepare_suspend(struct dwc3_msm *mdwc)
 					&mdwc->resume_work, 0);
 			return -EBUSY;
 		}
+#ifndef CONFIG_MACH_LENOVO
 	}
+#endif
 
 	/* Clear L2 event bit */
 	dwc3_msm_write_reg(mdwc->base, PWR_EVNT_IRQ_STAT_REG,
@@ -2171,10 +2185,12 @@ static int dwc3_msm_suspend(struct dwc3_msm *mdwc)
 			|| mdwc->in_host_mode) {
 		enable_irq_wake(mdwc->hs_phy_irq);
 		enable_irq(mdwc->hs_phy_irq);
+#ifndef CONFIG_MACH_LENOVO
 		if (mdwc->ss_phy_irq) {
 			enable_irq_wake(mdwc->ss_phy_irq);
 			enable_irq(mdwc->ss_phy_irq);
 		}
+#endif
 		mdwc->lpm_flags |= MDWC3_ASYNC_IRQ_WAKE_CAPABILITY;
 	}
 
@@ -2676,6 +2692,9 @@ dwc3_msm_property_is_writeable(struct power_supply *psy,
 static char *dwc3_msm_pm_power_supplied_to[] = {
 	"battery",
 	"bms",
+#ifdef CONFIG_MACH_LENOVO
+	"ext-charger",
+#endif
 };
 
 static enum power_supply_property dwc3_msm_pm_power_props_usb[] = {
@@ -2689,6 +2708,122 @@ static enum power_supply_property dwc3_msm_pm_power_props_usb[] = {
 	POWER_SUPPLY_PROP_USB_OTG,
 };
 
+#ifdef CONFIG_MACH_LENOVO
+static int msm_otg_enable_gpio_pull(struct dwc3_msm *dwc3, int enable)
+{
+	int err = 0;
+	struct pinctrl *pinctrl;
+	struct pinctrl_state *gpio_state;
+
+	if (!dwc3 || !dwc3->usb_id_gpio)
+		return 0;
+
+	pinctrl = devm_pinctrl_get(dwc3->dev);
+	if (IS_ERR_OR_NULL(pinctrl)) {
+		pr_err("%s: Getting pinctrl handle failed \r\n", __func__);
+		return -EINVAL;
+	}
+
+	if (enable)
+		gpio_state = pinctrl_lookup_state(pinctrl, "usbid_default");
+	else
+		gpio_state = pinctrl_lookup_state(pinctrl, "usbid_deactive");
+
+	if (pinctrl && gpio_state) {
+		err = pinctrl_select_state(pinctrl, gpio_state);
+		if (err) {
+			pr_err("%s: pinctrl usb id state, err = %d\r\n",
+					__func__, err);
+			return -EINVAL;
+		}
+	}
+	return 1;
+}
+
+static int msm_otg_enable_ext_id(struct dwc3_msm *dwc3, int enable)
+{
+	int res;
+	int irq;
+
+	if (!dwc3->usb_id_gpio)
+		return -ENODEV;
+
+	/* usb_id_gpio to irq */
+	irq = gpio_to_irq(dwc3->usb_id_gpio);
+
+	if (enable) {
+		res = msm_otg_enable_gpio_pull(dwc3, 1);
+		msleep(100);
+		enable_irq(irq);
+	} else {
+		disable_irq(irq);
+		msleep(50);
+		res = msm_otg_enable_gpio_pull(dwc3, 0);
+	}
+	return res;
+}
+
+static int set_host_mode_disable(const char *val, const struct kernel_param *kp)
+{
+	int res;
+	int rv = param_set_bool(val, kp);
+	struct dwc3_msm *dwc3 = the_msm_dwc3;
+
+	if (!dwc3 || !dwc3->usb_id_gpio)
+		return 0;
+
+	if (host_mode_disable)
+		res = msm_otg_enable_ext_id(dwc3, 0);
+	else
+		res = msm_otg_enable_ext_id(dwc3, 1);
+
+	if (res)
+		pr_err("%s: host_mode_disable:%d fail \n", __func__,
+				host_mode_disable);
+
+	return rv;
+}
+
+static struct kernel_param_ops host_mode_disable_param_ops = {
+	.set = set_host_mode_disable,
+	.get = param_get_bool,
+};
+
+module_param_cb(host_mode_disable, &host_mode_disable_param_ops,
+		&host_mode_disable, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(host_mode_disable, "Whether to disable Host Mode");
+
+static int get_host_id_state(char *val, const struct kernel_param *kp)
+{
+	struct dwc3_msm *dwc3 = the_msm_dwc3;
+	enum dwc3_id_state id;
+
+	if (!dwc3 || !dwc3->usb_id_gpio)
+		return 0;
+
+	if (gpio_is_valid(dwc3->usb_id_gpio)) {
+		id = gpio_get_value(dwc3->usb_id_gpio);
+	}
+
+	if (id == DWC3_ID_FLOAT) {
+		host_id_state = true;
+	} else {
+		host_id_state = false;
+	}
+
+	return param_get_int(val, kp);
+}
+
+static struct kernel_param_ops host_id_state_param_ops = {
+	.set = param_set_int,
+	.get = get_host_id_state,
+};
+
+module_param_cb(host_id_state, &host_id_state_param_ops,
+		&host_id_state, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(host_id_state, "Get the USB ID pin state");
+#endif
+
 static irqreturn_t dwc3_pmic_id_irq(int irq, void *data)
 {
 	struct dwc3_msm *mdwc = data;
@@ -2697,6 +2832,10 @@ static irqreturn_t dwc3_pmic_id_irq(int irq, void *data)
 
 	/* If we can't read ID line state for some reason, treat it as float */
 	id = !!irq_read_line(irq);
+#ifdef CONFIG_MACH_LENOVO
+	if (gpio_is_valid(mdwc->usb_id_gpio))
+		id = gpio_get_value(mdwc->usb_id_gpio);
+#endif
 	if (mdwc->id_state != id) {
 		mdwc->id_state = id;
 		dbg_event(0xFF, "stayIDIRQ", 0);
@@ -2904,11 +3043,24 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 	int ext_hub_reset_gpio;
 	u32 val;
 
+#ifdef CONFIG_MACH_LENOVO
+	msleep(600);
+#endif
+
 	mdwc = devm_kzalloc(&pdev->dev, sizeof(*mdwc), GFP_KERNEL);
 	if (!mdwc)
 		return -ENOMEM;
 
-	mdwc->curr_mode = DWC3_PERF_INVALID;
+#ifdef CONFIG_MACH_LENOVO
+	if (of_get_property(pdev->dev.of_node, "qcom,usb-dbm", NULL)) {
+		mdwc->dbm = usb_get_dbm_by_phandle(&pdev->dev, "qcom,usb-dbm");
+		if (IS_ERR(mdwc->dbm)) {
+			dev_err(&pdev->dev, "unable to get dbm device\n");
+			ret = -EPROBE_DEFER;
+			goto err_dbm;
+		}
+	}
+#endif
 
 	if (dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64))) {
 		dev_err(&pdev->dev, "setting DMA mask to 64 failed.\n");
@@ -2958,6 +3110,15 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 		dev_dbg(&pdev->dev, "setting lpm_to_suspend_delay to zero.\n");
 		mdwc->lpm_to_suspend_delay = 0;
 	}
+
+#ifdef CONFIG_MACH_LENOVO
+	mdwc->usb_id_gpio = of_get_named_gpio(node, "qcom,usbid-gpio", 0);
+	if (mdwc->usb_id_gpio < 0)
+		pr_err("usb_id_gpio is not available\n");
+
+	the_msm_dwc3 = mdwc;
+	msm_otg_enable_gpio_pull(mdwc, 1);
+#endif
 
 	/*
 	 * DWC3 has separate IRQ line for OTG events (ID/BSV) and for
@@ -3025,6 +3186,19 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 		}
 	}
 
+#ifdef CONFIG_MACH_LENOVO
+	if (gpio_is_valid(mdwc->usb_id_gpio)) {
+		/* usb_id_gpio request */
+		ret = gpio_request(mdwc->usb_id_gpio, "USB_ID_GPIO");
+		if (ret < 0) {
+			dev_err(&pdev->dev, "gpio req failed for id\n");
+			mdwc->usb_id_gpio = 0;
+			goto err;
+		}
+		/* usb_id_gpio to irq */
+		mdwc->pmic_id_irq = gpio_to_irq(mdwc->usb_id_gpio);
+	} else
+#endif
 	mdwc->pmic_id_irq = platform_get_irq_byname(pdev, "pmic_id_irq");
 	if (mdwc->pmic_id_irq > 0) {
 		irq_set_status_flags(mdwc->pmic_id_irq, IRQ_NOAUTOEN);
@@ -3110,6 +3284,9 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 		}
 	}
 
+#ifdef CONFIG_MACH_LENOVO
+	if (mdwc->dbm) {
+#else
 	if (of_get_property(pdev->dev.of_node, "qcom,usb-dbm", NULL)) {
 		mdwc->dbm = usb_get_dbm_by_phandle(&pdev->dev, "qcom,usb-dbm");
 		if (IS_ERR(mdwc->dbm)) {
@@ -3117,6 +3294,7 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 			ret = -EPROBE_DEFER;
 			goto err;
 		}
+#endif
 		/*
 		 * Add power event if the dbm indicates coming out of L1
 		 * by interrupt
@@ -3269,6 +3447,10 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 		enable_irq(mdwc->pmic_id_irq);
 		local_irq_save(flags);
 		mdwc->id_state = !!irq_read_line(mdwc->pmic_id_irq);
+#ifdef CONFIG_MACH_LENOVO
+		if (gpio_is_valid(mdwc->usb_id_gpio))
+			mdwc->id_state = gpio_get_value(mdwc->usb_id_gpio);
+#endif
 		if (mdwc->id_state == DWC3_ID_GROUND)
 			dwc3_ext_event_notify(mdwc);
 		local_irq_restore(flags);
@@ -3309,6 +3491,11 @@ put_psupply:
 		power_supply_unregister(&mdwc->usb_psy);
 err:
 	return ret;
+#ifdef CONFIG_MACH_LENOVO
+err_dbm:
+	devm_kfree(&pdev->dev, mdwc);
+	return ret;
+#endif
 }
 
 static int dwc3_msm_remove_children(struct device *dev, void *data)
