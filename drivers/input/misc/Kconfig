@@ -787,6 +787,9 @@ config INPUT_DRV2667_HAPTICS
 	  To compile this driver as a module, choose M here: the
 	  module will be called drv260x-haptics.
 
-source "drivers/input/misc/ots_pat9125/Kconfig"
+config SYNAPTICS_FINGERPRINT
+	tristate "Synaptics fingerprint reader support"
+	help
+	  Say Y to enable support for the Synaptics fingerprint reader driver.
 
 endif
