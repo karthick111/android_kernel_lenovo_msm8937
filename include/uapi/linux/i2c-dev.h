@@ -49,6 +49,11 @@
 #define I2C_RDWR	0x0707	/* Combined R/W transfer (one STOP only) */
 
 #define I2C_PEC		0x0708	/* != 0 to use PEC with SMBus */
+
+#ifdef CONFIG_SND_SOC_TAS2555
+#define ENABLE_MI2S_CLK	0x0709	/* Enable mi2s clock */
+#endif
+
 #define I2C_SMBUS	0x0720	/* SMBus transfer */
 
 

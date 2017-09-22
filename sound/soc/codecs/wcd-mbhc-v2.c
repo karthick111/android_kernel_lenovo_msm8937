@@ -517,6 +517,12 @@ int wcd_mbhc_get_impedance(struct wcd_mbhc *mbhc, uint32_t *zl,
 	*zr = mbhc->zr;
 
 	if (*zl && *zr)
+#ifdef CONFIG_MACH_LENOVO
+		if (*zl > 20000 && *zr > 20000) {
+			pr_debug("%s headset type is selfie stick\n", __func__);
+			return 1;
+		} else
+#endif
 		return 0;
 	else
 		return -EINVAL;
@@ -834,7 +840,24 @@ static void wcd_mbhc_find_plug_and_report(struct wcd_mbhc *mbhc,
 						SND_JACK_HEADPHONE);
 			if (mbhc->current_plug == MBHC_PLUG_TYPE_HEADSET)
 				wcd_mbhc_report_plug(mbhc, 0, SND_JACK_HEADSET);
+#ifdef CONFIG_MACH_LENOVO
+		if (mbhc->impedance_detect) {
+			int impe;
+			if (mbhc->impedance_detect &&
+					mbhc->mbhc_cb->compute_impedance &&
+					(mbhc->mbhc_cfg->linein_th != 0))
+				mbhc->mbhc_cb->compute_impedance(mbhc,
+						&mbhc->zl, &mbhc->zr);
+			impe = wcd_mbhc_get_impedance(mbhc,
+					&mbhc->zl, &mbhc->zr);
+			if (impe)
+				wcd_mbhc_report_plug(mbhc, 1, SND_JACK_HEADSET);
+			else
+				wcd_mbhc_report_plug(mbhc, 1, SND_JACK_HEADSET);
+		}
+#else
 		wcd_mbhc_report_plug(mbhc, 1, SND_JACK_UNSUPPORTED);
+#endif
 	} else if (plug_type == MBHC_PLUG_TYPE_HEADSET) {
 		if (mbhc->mbhc_cfg->enable_anc_mic_detect)
 			anc_mic_found = wcd_mbhc_detect_anc_plug_type(mbhc);
@@ -1094,6 +1117,10 @@ static void wcd_enable_mbhc_supply(struct wcd_mbhc *mbhc,
 							WCD_MBHC_EN_CS);
 		} else if (plug_type == MBHC_PLUG_TYPE_HEADPHONE) {
 			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_CS);
+#ifdef CONFIG_MACH_LENOVO
+		} else if (plug_type == MBHC_PLUG_TYPE_GND_MIC_SWAP) {
+			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_CS);
+#endif
 		} else {
 			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_NONE);
 		}
@@ -1164,6 +1191,9 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 	int rc, spl_hs_count = 0;
 	int cross_conn;
 	int try = 0;
+#ifdef CONFIG_MACH_LENOVO
+	int apple_detect_count = 0;
+#endif
 
 	pr_debug("%s: enter\n", __func__);
 
@@ -1358,6 +1388,11 @@ correct_plug_type:
 			pr_debug("%s: cable is extension cable\n", __func__);
 			plug_type = MBHC_PLUG_TYPE_HIGH_HPH;
 			wrk_complete = true;
+#ifdef CONFIG_MACH_LENOVO
+			if (apple_detect_count == 5)
+				break;
+			++apple_detect_count;
+#endif
 		} else {
 			pr_debug("%s: cable might be headset: %d\n", __func__,
 					plug_type);
@@ -1403,11 +1438,37 @@ correct_plug_type:
 
 	if (plug_type == MBHC_PLUG_TYPE_HIGH_HPH &&
 		(!det_extn_cable_en)) {
+#ifdef CONFIG_MACH_LENOVO
+		// it will report as selfie stick, althouth type is GND_MIC_SWAP
+		// in the wcd_mbhc_find_plug_and_report, impedance will be read
+		// to judge if it is a selfie stick
+		wcd_mbhc_find_plug_and_report(mbhc,
+				MBHC_PLUG_TYPE_GND_MIC_SWAP);
+#endif
 		if (wcd_is_special_headset(mbhc)) {
 			pr_debug("%s: Special headset found %d\n",
 					__func__, plug_type);
 			plug_type = MBHC_PLUG_TYPE_HEADSET;
 			goto report;
+#ifdef CONFIG_MACH_LENOVO
+		} else {
+			if (mbhc->impedance_detect) {
+				int impe;
+				if (mbhc->impedance_detect &&
+					mbhc->mbhc_cb->compute_impedance &&
+					(mbhc->mbhc_cfg->linein_th != 0))
+					mbhc->mbhc_cb->compute_impedance(mbhc,
+						&mbhc->zl, &mbhc->zr);
+					impe = wcd_mbhc_get_impedance(mbhc,
+						&mbhc->zl, &mbhc->zr);
+					if (impe == 1) {
+						pr_debug("%s: swap headset found %d\n",
+							__func__, plug_type);
+						plug_type = MBHC_PLUG_TYPE_GND_MIC_SWAP;
+						goto report;
+					}
+			}
+#endif
 		}
 	}
 
@@ -1522,6 +1583,11 @@ static void wcd_mbhc_swch_irq_handler(struct wcd_mbhc *mbhc)
 
 	if ((mbhc->current_plug == MBHC_PLUG_TYPE_NONE) &&
 	    detection_type) {
+#ifdef CONFIG_MACH_LENOVO
+		/* delay detection for debounce */
+		msleep(500);
+#endif
+
 		/* Make sure MASTER_BIAS_CTL is enabled */
 		mbhc->mbhc_cb->mbhc_bias(codec, true);
 
@@ -2452,6 +2518,27 @@ int wcd_mbhc_init(struct wcd_mbhc *mbhc, struct snd_soc_codec *codec,
 				__func__);
 			return ret;
 		}
+
+
+#ifdef CONFIG_MACH_LENOVO
+		ret = snd_jack_set_key(mbhc->button_jack.jack,
+				       SND_JACK_BTN_1,
+				       KEY_VOLUMEUP);
+		if (ret) {
+			pr_err("%s: Failed to set code for btn-1\n",
+				__func__);
+			return ret;
+		}
+
+		ret = snd_jack_set_key(mbhc->button_jack.jack,
+				       SND_JACK_BTN_2,
+				       KEY_VOLUMEDOWN);
+		if (ret) {
+			pr_err("%s: Failed to set code for btn-2\n",
+				__func__);
+			return ret;
+		}
+#endif
 
 		set_bit(INPUT_PROP_NO_DUMMY_RELEASE,
 			mbhc->button_jack.jack->input_dev->propbit);
