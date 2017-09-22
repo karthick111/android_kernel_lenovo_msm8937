@@ -1,0 +1,24 @@
+# Lenovo configuration options
+
+config MACH_LENOVO
+	bool "Lenovo device"
+	depends on ARCH_MSM
+	help
+	  Support for Lenovo products
+
+config MACH_LENOVO_MSM8953
+	bool "Lenovo MSM8953"
+	depends on ARCH_MSM8953
+	select MACH_LENOVO
+	help
+	  Support for MSM8953 Lenovo variants
+
+menu "Lenovo board selection"
+
+config MACH_LENOVO_KUNTAO
+	bool "Kuntao board"
+	select MACH_LENOVO_MSM8953
+	help
+	  Support for Lenovo P2 (kuntao)
+
+endmenu
