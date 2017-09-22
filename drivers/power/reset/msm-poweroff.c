@@ -281,14 +281,32 @@ static void msm_restart_prepare(const char *cmd)
 
 	if (qpnp_pon_check_hard_reset_stored()) {
 		/* Set warm reset as true when device is in dload mode */
+#ifdef CONFIG_MACH_LENOVO
+		if (get_dload_mode() ||
+			((cmd != NULL && cmd[0] != '\0') &&
+			strcmp(cmd, "recovery") &&
+			strcmp(cmd, "bootloader") &&
+			strcmp(cmd, "testmode") &&
+			strcmp(cmd, "dloadmode") &&
+			strcmp(cmd, "rtc")))
+#else
 		if (get_dload_mode() ||
 			((cmd != NULL && cmd[0] != '\0') &&
 			!strcmp(cmd, "edl")))
+#endif
 			need_warm_reset = true;
 	} else {
 		need_warm_reset = (get_dload_mode() ||
 				(cmd != NULL && cmd[0] != '\0'));
 	}
+
+#ifdef CONFIG_MACH_LENOVO
+	if (in_panic)
+		need_warm_reset = true;
+	else
+		qpnp_pon_store_extra_reset_info(RESET_EXTRA_LAST_REBOOT_REASON,
+				RESET_EXTRA_LAST_REBOOT_REASON);
+#endif
 
 	/* Hard reset the PMIC unless memory contents must be maintained. */
 	if (need_warm_reset) {
@@ -302,6 +320,16 @@ static void msm_restart_prepare(const char *cmd)
 			qpnp_pon_set_restart_reason(
 				PON_RESTART_REASON_BOOTLOADER);
 			__raw_writel(0x77665500, restart_reason);
+#ifdef CONFIG_MACH_LENOVO
+			/* set reboot_bl flag in PMIC for cold reset */
+			qpnp_pon_store_extra_reset_info(RESET_EXTRA_REBOOT_BL_REASON,
+				RESET_EXTRA_REBOOT_BL_REASON);
+			/*
+			 * force cold reboot here to avoid impaction from
+			 * modem double reboot workaround solution.
+			 */
+			qpnp_pon_system_pwr_off(PON_POWER_OFF_HARD_RESET);
+#endif
 		} else if (!strncmp(cmd, "recovery", 8)) {
 			qpnp_pon_set_restart_reason(
 				PON_RESTART_REASON_RECOVERY);
@@ -331,6 +359,12 @@ static void msm_restart_prepare(const char *cmd)
 					     restart_reason);
 		} else if (!strncmp(cmd, "edl", 3)) {
 			enable_emergency_dload_mode();
+#ifdef CONFIG_MACH_LENOVO
+		} else if (!strncmp(cmd, "testmode", 8)) {
+			__raw_writel(0x77665504, restart_reason);
+		} else if (!strncmp(cmd, "dloadmode", 9)) {
+			set_dload_mode(1);
+#endif
 		} else {
 			__raw_writel(0x77665501, restart_reason);
 		}
@@ -395,6 +429,10 @@ static void do_msm_restart(enum reboot_mode reboot_mode, const char *cmd)
 static void do_msm_poweroff(void)
 {
 	pr_notice("Powering off the SoC\n");
+#ifdef CONFIG_MACH_LENOVO
+	qpnp_pon_store_extra_reset_info(RESET_EXTRA_LAST_REBOOT_REASON,
+		RESET_EXTRA_LAST_REBOOT_REASON);
+#endif
 
 	set_dload_mode(0);
 	scm_disable_sdi();

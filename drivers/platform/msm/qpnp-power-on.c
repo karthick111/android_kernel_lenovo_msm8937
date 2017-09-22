@@ -95,6 +95,11 @@
 #define QPNP_PON_XVDD_RB_SPARE(pon)		((pon)->base + 0x8E)
 #define QPNP_PON_SOFT_RB_SPARE(pon)		((pon)->base + 0x8F)
 #define QPNP_PON_SEC_ACCESS(pon)		((pon)->base + 0xD0)
+#ifdef CONFIG_MACH_LENOVO
+/* spared registers for storing extra reset information */
+#define QPNP_PON_EXTRA_RESET_INFO_1(base)	(base + 0x8D)
+#define QPNP_PON_EXTRA_RESET_INFO_2(base)	(base + 0x8E)
+#endif
 
 #define QPNP_PON_SEC_UNLOCK			0xA5
 
@@ -374,6 +379,43 @@ int qpnp_pon_set_restart_reason(enum pon_restart_reason reason)
 	return rc;
 }
 EXPORT_SYMBOL(qpnp_pon_set_restart_reason);
+
+#ifdef CONFIG_MACH_LENOVO
+int qpnp_pon_store_extra_reset_info(u16 mask, u16 val)
+{
+	int rc = 0;
+	u16 extra_reset_info_reg;
+	struct qpnp_pon *pon = sys_reset_dev;
+
+	if (!pon)
+		return -ENODEV;
+
+	if (mask & 0xFF) {
+		extra_reset_info_reg = QPNP_PON_EXTRA_RESET_INFO_1(pon->base);
+		rc = qpnp_pon_masked_write(pon, extra_reset_info_reg,
+		    mask & 0xFF, val & 0xFF);
+		if (rc) {
+			pr_err("Failed to store extra reset info to 0x%x\n",
+			    extra_reset_info_reg);
+			return rc;
+		}
+	}
+
+	if (mask & 0xFF00) {
+		extra_reset_info_reg = QPNP_PON_EXTRA_RESET_INFO_2(pon->base);
+		rc = qpnp_pon_masked_write(pon, extra_reset_info_reg,
+		    (mask & 0xFF00) >> 8, (val & 0xFF00) >> 8);
+		if (rc) {
+			pr_err("Failed to store extra reset info to 0x%x\n",
+			    extra_reset_info_reg);
+			return rc;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(qpnp_pon_store_extra_reset_info);
+#endif
 
 /*
  * qpnp_pon_check_hard_reset_stored - Checks if the PMIC need to

@@ -59,6 +59,10 @@ enum pon_restart_reason {
 	PON_RESTART_REASON_DMVERITY_ENFORCE	= 0x05,
 	PON_RESTART_REASON_KEYS_CLEAR		= 0x06,
 };
+#ifdef CONFIG_MACH_LENOVO
+#define RESET_EXTRA_REBOOT_BL_REASON	BIT(2)
+#define RESET_EXTRA_LAST_REBOOT_REASON	BIT(4)
+#endif
 
 #ifdef CONFIG_QPNP_POWER_ON
 int qpnp_pon_system_pwr_off(enum pon_power_off_type type);
@@ -67,6 +71,9 @@ int qpnp_pon_trigger_config(enum pon_trigger_source pon_src, bool enable);
 int qpnp_pon_wd_config(bool enable);
 int qpnp_pon_set_restart_reason(enum pon_restart_reason reason);
 bool qpnp_pon_check_hard_reset_stored(void);
+#ifdef CONFIG_MACH_LENOVO
+int qpnp_pon_store_extra_reset_info(u16 mask, u16 val);
+#endif
 
 #else
 static int qpnp_pon_system_pwr_off(enum pon_power_off_type type)
@@ -91,6 +98,13 @@ static inline bool qpnp_pon_check_hard_reset_stored(void)
 {
 	return false;
 }
+
+#ifdef CONFIG_MACH_LENOVO
+static inline int qpnp_pon_store_extra_reset_info(u16 mask, u16 val)
+{
+	return -ENODEV;
+}
+#endif
 #endif
 
 #endif
