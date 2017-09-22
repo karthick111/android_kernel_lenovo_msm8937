@@ -175,6 +175,7 @@ config SND_SOC_MSM8X16
 	select SND_SOC_MSM8X16_WCD
 	select SND_SOC_WSA881X_ANALOG
 	select SND_SOC_WSA881X
+	select SND_SOC_TAS2555
 	select MFD_CORE
 	select QTI_PP
 	select DTS_SRS_TM

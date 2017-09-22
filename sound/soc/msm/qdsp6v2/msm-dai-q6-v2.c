@@ -3226,6 +3226,10 @@ static int msm_dai_q6_mi2s_hw_free(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+#ifdef CONFIG_MACH_LENOVO
+extern atomic_t quin_mi2s_clk_ref;
+#endif
+
 static void msm_dai_q6_mi2s_shutdown(struct snd_pcm_substream *substream,
 				     struct snd_soc_dai *dai)
 {
@@ -3243,6 +3247,17 @@ static void msm_dai_q6_mi2s_shutdown(struct snd_pcm_substream *substream,
 		dev_err(dai->dev, "%s: Invalid Port ID 0x%x\n",
 				__func__, port_id);
 	}
+
+#ifdef CONFIG_MACH_LENOVO
+	if ((atomic_read(&quin_mi2s_clk_ref) >= 1) &&
+			(port_id == AFE_PORT_ID_QUINARY_MI2S_RX)) {
+		if (test_bit(STATUS_PORT_STARTED, dai_data->status_mask))
+			clear_bit(STATUS_PORT_STARTED, dai_data->status_mask);
+		if (test_bit(STATUS_PORT_STARTED, dai_data->hwfree_status))
+			clear_bit(STATUS_PORT_STARTED, dai_data->hwfree_status);
+		return;
+	}
+#endif
 
 	dev_dbg(dai->dev, "%s: closing afe port id = 0x%x\n",
 			__func__, port_id);

@@ -1371,6 +1371,39 @@ done:
 	return ret;
 }
 
+#ifdef CONFIG_MACH_LENOVO
+int msm8x16_quin_mi2s_clocks(bool enable)
+{
+	union afe_port_config port_config;
+	u16 port_id = AFE_PORT_ID_QUINARY_MI2S_RX;
+	int rc = 0;
+
+	if (enable) {
+		port_config.i2s.channel_mode = AFE_PORT_I2S_SD0;
+		port_config.i2s.mono_stereo = MSM_AFE_CH_STEREO;
+		port_config.i2s.bit_width = 16;
+		port_config.i2s.i2s_cfg_minor_version =
+				AFE_API_VERSION_I2S_CONFIG;
+		port_config.i2s.sample_rate = 48000;
+		port_config.i2s.ws_src = 1;
+		port_config.i2s.data_format = 0;
+		port_config.i2s.reserved = 0;
+		rc = afe_port_start(port_id, &port_config, 48000);
+		if (IS_ERR_VALUE(rc)) {
+			pr_err("fail to open AFE port\n");
+			return -EINVAL;
+		}
+	} else {
+		rc = afe_close(port_id);
+		if (IS_ERR_VALUE(rc)) {
+			pr_err("fail to close AFE port\n");
+			return -EINVAL;
+		}
+	}
+	return rc;
+}
+#endif
+
 static void send_afe_cal_type(int cal_index, int port_id)
 {
 	struct cal_block_data		*cal_block = NULL;
@@ -2588,6 +2621,9 @@ void afe_set_cal_mode(u16 port_id, enum afe_cal_mode afe_cal_mode)
 	this_afe.afe_cal_mode[port_index] = afe_cal_mode;
 }
 
+#ifdef CONFIG_MACH_LENOVO
+extern atomic_t quin_mi2s_clk_ref;
+#endif
 int afe_port_start(u16 port_id, union afe_port_config *afe_config,
 	u32 rate) /* This function is no blocking */
 {
@@ -2603,6 +2639,12 @@ int afe_port_start(u16 port_id, union afe_port_config *afe_config,
 		ret = -EINVAL;
 		return ret;
 	}
+
+#ifdef CONFIG_MACH_LENOVO
+	if ((port_id == AFE_PORT_ID_QUINARY_MI2S_RX) &&
+			(atomic_read(&quin_mi2s_clk_ref) >= 1))
+		return 0;
+#endif
 
 	if ((port_id == RT_PROXY_DAI_001_RX) ||
 		(port_id == RT_PROXY_DAI_002_TX)) {
