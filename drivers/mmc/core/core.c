@@ -1146,7 +1146,11 @@ static void mmc_update_bkops_auto_off(struct mmc_bkops_stats *stats)
 static void mmc_update_bkops_level(struct mmc_bkops_stats *stats,
 					unsigned level)
 {
-	BUG_ON(level >= MMC_BKOPS_NUM_SEVERITY_LEVELS);
+	//BUG_ON(level >= MMC_BKOPS_NUM_SEVERITY_LEVELS);
+        //just ignore it in case panic
+        if(level >= MMC_BKOPS_NUM_SEVERITY_LEVELS)
+            return;
+
 	spin_lock_irq(&stats->lock);
 	if (stats->enabled)
 		stats->level[level]++;
