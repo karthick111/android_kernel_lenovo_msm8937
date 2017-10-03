@@ -428,6 +428,24 @@ int rtc_initialize_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm)
 EXPORT_SYMBOL_GPL(rtc_initialize_alarm);
 
 
+int alarm_set_deviceup(struct rtc_device *rtc, struct rtc_wkalrm *alarm)
+{
+	int err;
+       printk("andypan alarm_set_deviceup \r\n");
+	err = rtc_valid_tm(&alarm->time);
+	if (err != 0)
+		return err;
+
+	err = mutex_lock_interruptible(&rtc->ops_lock);
+	if (err)
+		return err;
+	rtc->ops->set_alarm_deviceup(rtc->dev.parent, alarm);
+	mutex_unlock(&rtc->ops_lock);
+	return err;
+}
+
+EXPORT_SYMBOL_GPL(alarm_set_deviceup);
+
 
 int rtc_alarm_irq_enable(struct rtc_device *rtc, unsigned int enabled)
 {
