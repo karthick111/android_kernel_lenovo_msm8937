@@ -22,6 +22,18 @@
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
 
+#include <linux/statfs.h>
+#include <linux/mount.h>
+#include "mount.h"
+#include <linux/mmc/mmc.h>
+#include "low_storage.h"
+
+#ifdef LIMIT_SDCARD_SIZE
+long long  data_free_size_th = DATA_FREE_SIZE_TH_DEFAULT+DATA_FREE_SIZE_TH_DEFAULT;
+long long data_free_page = DATA_FREE_SIZE_TH_DEFAULT/4096;
+
+#endif
+long long store = 0;
 typedef ssize_t (*io_fn_t)(struct file *, char __user *, size_t, loff_t *);
 typedef ssize_t (*iov_fn_t)(struct kiocb *, const struct iovec *,
 		unsigned long, loff_t);
@@ -518,7 +530,82 @@ EXPORT_SYMBOL(__kernel_write);
 ssize_t vfs_write(struct file *file, const char __user *buf, size_t count, loff_t *pos)
 {
 	ssize_t ret;
+#ifdef LIMIT_DATA_SIZE
+	struct kstatfs stat;
+        static int last_pid=0;
+        static int samepid=0;
+	//sstruct task_struct *tsk = current;
+	//unsigned char num = 0;
+	struct mount *mount_data;
+	//char *file_list[10] = {"xx_thread", NULL};
+#endif
 
+#ifdef LIMIT_DATA_SIZE
+       mount_data = real_mount(file->f_path.mnt);
+	if((mount_data)&&(mount_data->mnt_mountpoint)&&(mount_data->mnt_mountpoint->d_name.name))
+	{
+		if (!memcmp(mount_data->mnt_mountpoint->d_name.name, "data", 5)) {
+			if((mount_data->mnt.mnt_sb)&&(mount_data->mnt.mnt_sb->s_type))
+			{
+				//printk(KERN_ERR "[low storage] file system type %s\n",mount_data->mnt.mnt_sb->s_type->name);
+				if((!memcmp(mount_data->mnt.mnt_sb->s_type->name, "ext4", 4))||(!memcmp(mount_data->mnt.mnt_sb->s_type->name, "f2fs", 4)))
+				{
+					store -= count;
+					if (store  < (data_free_size_th)){
+						vfs_statfs(&file->f_path, &stat);
+						store = stat.f_bavail* stat.f_bsize;
+						printk(KERN_ERR "[low storage] initialize data free size when acess data ,%llx, b_vavail=0x%llx\n",store,stat.f_bavail);
+						/*if (store <= CHECK_2TH) {
+							store -= count;
+							for (; file_list[num] != NULL; num ++) {
+								if (!strcmp(tsk->comm, file_list[num]))
+									break;
+							}
+							if (file_list[num] == NULL) {
+							    printk("[low storage] wite data over flow, %llx\n",store);
+								store += count;
+								return -ENOSPC;
+							}
+						}*/
+					}
+				}
+			}
+		}
+	}
+#endif
+
+
+#ifdef LIMIT_SDCARD_SIZE
+       // store always come from write data, after fuse write, it will also come into data write.so store will be 
+	if((file->f_path.mnt)&&(file->f_path.mnt->mnt_sb)&&(file->f_path.mnt->mnt_sb->s_dev)&&(file->f_path.mnt->mnt_sb->s_dev==fuse_data_dev))
+	{
+		//printk(KERN_ERR "sd %d, %lld, %lld \n",file->f_path.mnt->mnt_sb->s_dev ,store,data_free_size_th);
+		if(store <data_free_size_th )
+		{
+			vfs_statfs(&file->f_path, &stat);
+			/*
+			since minus 50M  in statfs will cause  the CTS test faile ,
+			so we  change as following instead of old  if(stat.f_bavail== 0) //that mean less than reserved size
+			*/
+			//printk(KERN_ERR "[low storage] stat->free=%llx,available=%llx\n",stat.f_bfree,stat.f_bavail);
+			if(stat.f_bavail<data_free_page)
+			{
+			        if( current->pid!= last_pid)
+			        {
+				        printk(KERN_ERR "[low storage] wite %s over flow,%llx, %s, %d \n",mount_data->mnt_mountpoint->d_name.name,store,current->comm,samepid);
+			                printk(KERN_ERR "[low storage] free=%llx,avai=%llx\n",stat.f_bfree,stat.f_bavail);
+				        last_pid = current->pid;
+				        samepid=0;
+			        }
+				else
+				{
+				        samepid++;
+				}
+				return -ENOSPC;
+			}
+		}
+	}
+#endif
 	if (!(file->f_mode & FMODE_WRITE))
 		return -EBADF;
 	if (!(file->f_mode & FMODE_CAN_WRITE))

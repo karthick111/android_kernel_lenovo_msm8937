@@ -1062,6 +1062,17 @@ config FT_SECURE_TOUCH
 
 	  If unsure, say N.
 
+config TOUCHSCREEN_FTS
+	tristate "FocalTech touchscreens"
+	depends on I2C
+	help
+	  Say Y here if you have a focaltech touchscreen.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called fts_ts.
+
 config TOUCHSCREEN_SYNAPTICS_I2C_RMI4
 	tristate "Synaptics DSX I2C touchscreen"
 	depends on I2C

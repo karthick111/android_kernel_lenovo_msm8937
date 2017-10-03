@@ -36,6 +36,10 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
+#ifdef CONFIG_LENOVO_DEBUG_RKM
+#include <asm/le_rkm.h>
+#endif
+
 #include "mm.h"
 
 #ifdef CONFIG_CPU_CP15_MMU
@@ -326,6 +330,11 @@ void __init arm_memblock_init(const struct machine_desc *mdesc)
 	dma_contiguous_reserve(arm_dma_limit);
 
 	arm_memblock_steal_permitted = false;
+
+#ifdef CONFIG_LENOVO_DEBUG_RKM
+    arm_rkm_log_backup();
+#endif
+
 	memblock_dump_all();
 }
 

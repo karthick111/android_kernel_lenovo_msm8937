@@ -39,6 +39,7 @@
 #include <asm/setup.h>
 #include <asm/sizes.h>
 #include <asm/tlb.h>
+#include <asm/le_rkm.h>
 #include <asm/alternative.h>
 
 #include "mm.h"
@@ -160,6 +161,11 @@ void __init arm64_memblock_init(void)
 	dma_contiguous_reserve(dma_phys_limit);
 
 	memblock_allow_resize();
+
+#ifdef CONFIG_LENOVO_DEBUG_RKM
+	arm64_rkm_log_backup();
+#endif
+
 	memblock_dump_all();
 }
 

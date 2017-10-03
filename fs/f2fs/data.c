@@ -724,6 +724,15 @@ static int get_data_block(struct inode *inode, sector_t iblock,
 	return __get_data_block(inode, iblock, bh_result, create, false);
 }
 
+static int get_data_block_bmap(struct inode *inode, sector_t iblock,
+			struct buffer_head *bh_result, int create)
+{
+	/* Block number less than F2FS MAX BLOCKS */
+	if (unlikely(iblock >= max_file_size(0)))
+		return -EFBIG;
+	return __get_data_block(inode, iblock, bh_result, create, false);
+}
+
 static int get_data_block_fiemap(struct inode *inode, sector_t iblock,
 			struct buffer_head *bh_result, int create)
 {
@@ -818,7 +827,7 @@ static int f2fs_write_data_page(struct page *page,
 	int err = 0;
 	struct f2fs_io_info fio = {
 		.type = DATA,
-		.rw = (wbc->sync_mode == WB_SYNC_ALL) ? WRITE_SYNC : WRITE,
+		.rw = wbc_to_write_cmd(wbc),
 	};
 
 	trace_f2fs_writepage(page, DATA);
@@ -1153,7 +1162,7 @@ static sector_t f2fs_bmap(struct address_space *mapping, sector_t block)
 	if (f2fs_has_inline_data(inode))
 		return 0;
 
-	return generic_block_bmap(mapping, block, get_data_block);
+	return generic_block_bmap(mapping, block, get_data_block_bmap);
 }
 
 const struct address_space_operations f2fs_dblock_aops = {

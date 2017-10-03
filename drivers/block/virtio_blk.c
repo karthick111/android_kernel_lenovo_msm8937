@@ -364,6 +364,7 @@ static void virtblk_config_changed_work(struct work_struct *work)
 		  cap_str_10, cap_str_2);
 
 	set_capacity(vblk->disk, capacity);
+
 	revalidate_disk(vblk->disk);
 	kobject_uevent_env(&disk_to_dev(vblk->disk)->kobj, KOBJ_CHANGE, envp);
 }
@@ -486,11 +487,7 @@ static void virtblk_update_cache_mode(struct virtio_device *vdev)
 	u8 writeback = virtblk_get_cache_mode(vdev);
 	struct virtio_blk *vblk = vdev->priv;
 
-	if (writeback)
-		blk_queue_flush(vblk->disk->queue, REQ_FLUSH);
-	else
-		blk_queue_flush(vblk->disk->queue, 0);
-
+    blk_queue_write_cache(vblk->disk->queue, writeback, false);
 	revalidate_disk(vblk->disk);
 }
 

@@ -13,7 +13,9 @@ if BLOCK
 source "fs/ext2/Kconfig"
 source "fs/ext3/Kconfig"
 source "fs/ext4/Kconfig"
-
+# lenovo.sw : add for wrapfs
+source "fs/sdcardfs/Kconfig"
+# end
 config FS_XIP
 # execute in place
 	bool
@@ -89,6 +91,7 @@ if BLOCK
 menu "DOS/FAT/NT Filesystems"
 
 source "fs/fat/Kconfig"
+source "fs/exfat/Kconfig"
 source "fs/ntfs/Kconfig"
 
 endmenu

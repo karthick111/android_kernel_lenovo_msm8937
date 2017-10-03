@@ -82,6 +82,8 @@ ifdef CONFIG_MSM_SUBSYSTEM_RESTART
 	obj-y += ramdump.o
 endif
 
+obj-y += lephone_nv.o
+
 obj-$(CONFIG_MSM_SERVICE_NOTIFIER) += service-notifier.o
 obj-$(CONFIG_MSM_SYSMON_COMM) += sysmon.o sysmon-qmi.o
 obj-$(CONFIG_MSM_SECURE_BUFFER) += secure_buffer.o

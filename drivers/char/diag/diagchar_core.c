@@ -1412,7 +1412,7 @@ static int diag_md_session_check(int curr_mode, int req_mode,
 			diag_md_session_close(session_info);
 			return 0;
 		}
-
+		
 		if (param->mode_param == DIAG_MD_NORMAL) {
 			/*
 			 * The new client is asking for MD_NORMAL. We're

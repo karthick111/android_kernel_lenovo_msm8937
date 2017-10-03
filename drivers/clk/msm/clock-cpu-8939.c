@@ -246,6 +246,17 @@ static struct clk *logical_cpu_to_clk(int cpu)
 	return NULL;
 }
 
+//yangjq, 20160422, Add to show AP's clock rate in /sys/private/cpu_freq, START
+unsigned long acpu_clk_get_rate(int cpu)
+{
+	unsigned long cur_rate;
+
+	cur_rate = clk_get_rate(logical_cpu_to_clk(cpu));
+
+	return cur_rate;
+}
+//yangjq, 20160422, Add to show AP's clock rate in /sys/private/cpu_freq, END
+
 static int of_get_fmax_vdd_class(struct platform_device *pdev, struct clk *c,
 								char *prop_name)
 {

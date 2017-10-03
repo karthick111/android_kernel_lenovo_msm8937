@@ -701,8 +701,14 @@ static ssize_t qpnp_wled_fs_curr_ua_store(struct device *dev,
 	struct qpnp_wled *wled = dev_get_drvdata(dev);
 	int data, i, rc, temp;
 	u8 reg;
+	enum led_brightness lcd_brightness = 0;
 
 	if (sscanf(buf, "%d", &data) != 1)
+		return -EINVAL;
+
+	lcd_brightness = wled->cdev.brightness;
+
+	if((lcd_brightness <= 1606) && (data <= 12500) )//100 level not set
 		return -EINVAL;
 
 	for (i = 0; i < wled->num_strings; i++) {
@@ -719,6 +725,7 @@ static ssize_t qpnp_wled_fs_curr_ua_store(struct device *dev,
 		reg &= QPNP_WLED_FS_CURR_MASK;
 		temp = data / QPNP_WLED_FS_CURR_STEP_UA;
 		reg |= temp;
+		printk(KERN_ERR "%s,thermal lcd_current :%d",__func__,reg);;
 		rc = qpnp_wled_write_reg(wled, &reg,
 				QPNP_WLED_FS_CURR_REG(wled->sink_base,
 							wled->strings[i]));
