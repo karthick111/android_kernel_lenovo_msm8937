@@ -639,9 +639,9 @@ static int fts_check_double_click (struct fts_ts_data *data)
 static int fts_report_double_click (struct fts_ts_data *data)
 {
 	if(data->valid_double_click) {
-		input_report_key(data->input_dev, USR_TP_DOUBLE_CLICK, 1);
+		input_report_key(data->input_dev, KEY_WAKEUP, 1);
 		input_sync(data->input_dev);
-		input_report_key(data->input_dev, USR_TP_DOUBLE_CLICK, 0);
+		input_report_key(data->input_dev, KEY_WAKEUP, 0);
 		input_sync(data->input_dev);
 	}
 	return 0;
@@ -1910,7 +1910,7 @@ static int fts_ts_probe(struct i2c_client *client, const struct i2c_device_id *i
 	__set_bit(BTN_TOUCH, input_dev->keybit);
 	__set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
 #if LENOVO_DOUBLE_CLICK
-	__set_bit(USR_TP_DOUBLE_CLICK,input_dev->keybit);
+	__set_bit(KEY_WAKEUP,input_dev->keybit);
 #endif
 	fts_register_buttons(input_dev, pdata);
 
