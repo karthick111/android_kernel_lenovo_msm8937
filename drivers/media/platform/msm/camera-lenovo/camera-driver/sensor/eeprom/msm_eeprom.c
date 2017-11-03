@@ -17,9 +17,7 @@
 #include "msm_sd.h"
 #include "msm_cci.h"
 #include "msm_eeprom.h"
-#ifdef CONFIG_CAMERA_WT_FACTORY_SUPPORTED
-#include <linux/hardware_info.h>
-#endif
+
 #undef CDBG
 #define CDBG(fmt, args...) pr_debug(fmt, ##args)
 
@@ -330,10 +328,6 @@ static int eeprom_parse_memory_map(struct msm_eeprom_ctrl_t *e_ctrl,
 	int rc =  0, i, j;
 	uint8_t *memptr;
 	struct msm_eeprom_mem_map_t *eeprom_map;
-#ifdef CONFIG_CAMERA_WT_FACTORY_SUPPORTED
-	static char module_id[20] = {0};
-	int32_t module_id_index = 0x000C;
-#endif
 
 	e_ctrl->cal_data.mapdata = NULL;
 	e_ctrl->cal_data.num_data = msm_get_read_mem_size(eeprom_map_array);
@@ -422,21 +416,6 @@ static int eeprom_parse_memory_map(struct msm_eeprom_ctrl_t *e_ctrl,
 	memptr = e_ctrl->cal_data.mapdata;
 	for (i = 0; i < e_ctrl->cal_data.num_data; i++)
 		CDBG("memory_data[%d] = 0x%X\n", i, memptr[i]);
-#ifdef CONFIG_CAMERA_WT_FACTORY_SUPPORTED
-	if (e_ctrl->pdev->id == 1) {
-		if (((e_ctrl->cal_data.mapdata[0] >> 6) & 0x3) == 1)
-			module_id_index = 0x3205 - 0x3204;
-		else if (((e_ctrl->cal_data.mapdata[0] >> 4) & 0x3) == 1)
-			module_id_index = 0x3211 - 0x3204;
-		sprintf(module_id, "%x", e_ctrl->cal_data.mapdata[module_id_index]);
-		hardwareinfo_set_prop(HARDWARE_FRONT_CAM_MOUDULE_ID, module_id);
-	} else if (e_ctrl->pdev->id == 0) {
-		module_id_index = 0x000C;
-		sprintf(module_id, "%x", e_ctrl->cal_data.mapdata[module_id_index]);
-		hardwareinfo_set_prop(HARDWARE_BACK_CAM_MOUDULE_ID, module_id);
-	}
-	CDBG("module_id: %s index: 0x%x\n", module_id, module_id_index);
-#endif
 	return rc;
 
 clean_up:
@@ -1586,10 +1565,6 @@ static int msm_eeprom_platform_probe(struct platform_device *pdev)
 	int rc = 0;
 	int j = 0;
 	uint32_t temp;
-#ifdef CONFIG_CAMERA_WT_FACTORY_SUPPORTED
-	static char module_id[20] = {0};
-	int32_t module_id_index = 0x000C;
-#endif
 
 	struct msm_camera_cci_client *cci_client = NULL;
 	struct msm_eeprom_ctrl_t *e_ctrl = NULL;
@@ -1730,24 +1705,6 @@ static int msm_eeprom_platform_probe(struct platform_device *pdev)
 			pr_err("%s read_eeprom_memory failed\n", __func__);
 			goto power_down;
 		}
-#ifdef CONFIG_CAMERA_WT_FACTORY_SUPPORTED
-		else {
-			if (pdev->id == 1) {
-				if (((e_ctrl->cal_data.mapdata[0] >> 6) & 0x3) == 1)
-					module_id_index = 0x3205 - 0x3204;
-				else if (((e_ctrl->cal_data.mapdata[0] >> 4) & 0x3) == 1)
-					module_id_index = 0x3211 - 0x3204;
-				sprintf(module_id, "%x", e_ctrl->cal_data.mapdata[module_id_index]);
-				hardwareinfo_set_prop(HARDWARE_FRONT_CAM_MOUDULE_ID, module_id);
-			} else if (pdev->id == 0) {
-				module_id_index = 0x000C;
-				sprintf(module_id, "%x", e_ctrl->cal_data.mapdata[module_id_index]);
-				hardwareinfo_set_prop(HARDWARE_BACK_CAM_MOUDULE_ID, module_id);
-			}
-
-			CDBG("module_id: %s index: 0x%x\n", module_id, module_id_index);
-		}
-#endif
 		for (j = 0; j < e_ctrl->cal_data.num_data; j++)
 			CDBG("memory_data[%d] = 0x%X\n", j,
 				e_ctrl->cal_data.mapdata[j]);

@@ -17,9 +17,7 @@
 #include "camera.h"
 #include "msm_cci.h"
 #include "msm_camera_dt_util.h"
-#ifdef CONFIG_CAMERA_WT_FACTORY_SUPPORTED
-#include <linux/hardware_info.h>
-#endif
+
 /* Logging macro */
 #undef CDBG
 #define CDBG(fmt, args...) pr_debug(fmt, ##args)
@@ -918,14 +916,6 @@ CSID_TG:
 	}
 
 	pr_err("%s probe succeeded", slave_info->sensor_name);
-
-#ifdef CONFIG_CAMERA_WT_FACTORY_SUPPORTED
-	if (slave_info->camera_id == 0) {
-		hardwareinfo_set_prop(HARDWARE_BACK_CAM,s_ctrl->sensordata->sensor_name);
-	} else {
-		hardwareinfo_set_prop(HARDWARE_FRONT_CAM,s_ctrl->sensordata->sensor_name);
-	}
-#endif
 
 	/*
 	  Set probe succeeded flag to 1 so that no other camera shall
