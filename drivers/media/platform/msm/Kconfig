@@ -52,12 +52,6 @@ menuconfig QUALCOMM_DIR_CAMERA
           Say Y here to enable selecting the vendor lenovo camera driver
           directory to compile into the kernel.
 
-config CAMERA_WT_FACTORY_SUPPORTED
-        bool "Lenovo Wingtech factory supported about camera"
-        depends on MSMB_CAMERA
-        ---help---
-          Enable to support the wingtech factory about camera
-
 config MSMB_CAMERA_DEBUG
         bool "Qualcomm MSM camera 2.0 debugging with printk"
         depends on MSMB_CAMERA
