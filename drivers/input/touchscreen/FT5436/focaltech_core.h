@@ -67,7 +67,6 @@
 #include <linux/netdevice.h>
 #include <linux/unistd.h>
 #include <linux/ioctl.h>
-#include <linux/hardware_info.h>
 #include <linux/wakelock.h>
 #include "ft_gesture_lib.h"
 
