@@ -238,9 +238,9 @@
 	pinctrl-1 = <&mdss_dsi_suspend &mdss_te_suspend>;
 
 	qcom,platform-te-gpio = <&tlmm 24 0>;
-	qcom,platform-enable-gpio = <&tlmm 99 0>;
+	//qcom,platform-enable-gpio = <&tlmm 99 0>;
 	qcom,platform-reset-gpio = <&tlmm 60 0>;
-	qcom,platform-bklight-en-gpio = <&tlmm 98 0>;
+	//qcom,platform-bklight-en-gpio = <&tlmm 98 0>;
 };
 
 &mdss_dsi1 {
@@ -258,8 +258,8 @@
 
 &dsi_otm1901a_tm_1080p_video {
 	qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
-	qcom,mdss-dsi-pan-enable-dynamic-fps;
-	qcom,mdss-dsi-pan-fps-update = "dfps_immediate_porch_mode_vfp";
+	//qcom,mdss-dsi-pan-enable-dynamic-fps;
+	//qcom,mdss-dsi-pan-fps-update = "dfps_immediate_porch_mode_vfp";
 };
 
 &dsi_truly_1080_cmd {
