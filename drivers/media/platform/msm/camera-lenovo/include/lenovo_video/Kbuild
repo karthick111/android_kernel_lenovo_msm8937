@@ -1,2 +1,0 @@
-header-y += v4l2_camera_ext_ctrls.h
-header-y += v4l2_camera_ext_events.h
