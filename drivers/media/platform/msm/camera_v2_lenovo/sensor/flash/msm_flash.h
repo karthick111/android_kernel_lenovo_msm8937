@@ -42,10 +42,12 @@ struct msm_flash_func_t {
 		struct msm_flash_cfg_data_t *);
 	int32_t (*camera_flash_high)(struct msm_flash_ctrl_t *,
 		struct msm_flash_cfg_data_t *);
+#ifdef CONFIG_LENOVO_DIR_CAMERA
 	int32_t (*camera_flash_read)(struct msm_flash_ctrl_t *,
 		struct msm_flash_cfg_data_t *);
 	int32_t (*camera_flash_write)(struct msm_flash_ctrl_t *,
 		struct msm_flash_cfg_data_t *);
+#endif
 };
 
 struct msm_flash_table {

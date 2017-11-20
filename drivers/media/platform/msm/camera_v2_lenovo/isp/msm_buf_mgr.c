@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -62,13 +62,13 @@ static int msm_buf_check_head_sanity(struct msm_isp_bufq *bufq)
 	}
 
 	if (prev->next != &bufq->head) {
-		pr_err("%s: Error! head prev->next is %p should be %p\n",
+		pr_err("%s: Error! head prev->next is %pK should be %pK\n",
 			__func__, prev->next, &bufq->head);
 		return -EINVAL;
 	}
 
 	if (next->prev != &bufq->head) {
-		pr_err("%s: Error! head next->prev is %p should be %p\n",
+		pr_err("%s: Error! head next->prev is %pK should be %pK\n",
 			__func__, next->prev, &bufq->head);
 		return -EINVAL;
 	}
@@ -86,7 +86,7 @@ struct msm_isp_bufq *msm_isp_get_bufq(
 	/* bufq_handle cannot be 0 */
 	if ((bufq_handle == 0) ||
 		bufq_index >= BUF_MGR_NUM_BUF_Q ||
-		(bufq_index > buf_mgr->num_buf_q))
+		(bufq_index >= buf_mgr->num_buf_q))
 		return NULL;
 
 	bufq = &buf_mgr->bufq[bufq_index];
@@ -189,6 +189,12 @@ static int msm_isp_prepare_v4l2_buf(struct msm_isp_buf_mgr *buf_mgr,
 	struct msm_isp_buffer_mapped_info *mapped_info;
 	uint32_t accu_length = 0;
 
+	if (qbuf_buf->num_planes > MAX_PLANES_PER_STREAM) {
+		pr_err("%s: Invalid num_planes %d , stream id %x\n",
+			__func__, qbuf_buf->num_planes, stream_id);
+		return -EINVAL;
+	}
+
 	for (i = 0; i < qbuf_buf->num_planes; i++) {
 		mapped_info = &buf_info->mapped_info[i];
 		mapped_info->buf_fd = qbuf_buf->planes[i].addr;
@@ -206,8 +212,8 @@ static int msm_isp_prepare_v4l2_buf(struct msm_isp_buf_mgr *buf_mgr,
 		mapped_info->paddr += accu_length;
 		accu_length += qbuf_buf->planes[i].length;
 
-		CDBG("%s: plane: %d addr:%lu\n",
-			__func__, i, (unsigned long)mapped_info->paddr);
+		CDBG("%s: plane: %d addr:%pK\n",
+			__func__, i, (void *)mapped_info->paddr);
 
 	}
 	buf_info->num_planes = qbuf_buf->num_planes;
@@ -228,8 +234,14 @@ static void msm_isp_unprepare_v4l2_buf(
 	struct msm_isp_bufq *bufq = NULL;
 
 	if (!buf_mgr || !buf_info) {
-		pr_err("%s: NULL ptr %p %p\n", __func__,
+		pr_err("%s: NULL ptr %pK %pK\n", __func__,
 			buf_mgr, buf_info);
+		return;
+	}
+
+	if (buf_info->num_planes > VIDEO_MAX_PLANES) {
+		pr_err("%s: Invalid num_planes %d , stream id %x\n",
+			__func__, buf_info->num_planes, stream_id);
 		return;
 	}
 
@@ -255,7 +267,7 @@ static int msm_isp_map_buf(struct msm_isp_buf_mgr *buf_mgr,
 	int ret;
 
 	if (!buf_mgr || !mapped_info) {
-		pr_err_ratelimited("%s: %d] NULL ptr buf_mgr %p mapped_info %p\n",
+		pr_err_ratelimited("%s: %d] NULL ptr buf_mgr %pK mapped_info %pK\n",
 			__func__, __LINE__, buf_mgr, mapped_info);
 		return -EINVAL;
 	}
@@ -270,8 +282,8 @@ static int msm_isp_map_buf(struct msm_isp_buf_mgr *buf_mgr,
 		pr_err_ratelimited("%s: cannot map address", __func__);
 		goto smmu_map_error;
 	}
-	CDBG("%s: addr:%lu\n",
-		__func__, (unsigned long)mapped_info->paddr);
+	CDBG("%s: addr:%pK\n",
+		__func__, (void *)mapped_info->paddr);
 
 	return rc;
 smmu_map_error:
@@ -1309,14 +1321,15 @@ static int msm_isp_buf_mgr_debug(struct msm_isp_buf_mgr *buf_mgr,
 	struct msm_isp_buffer *bufs = NULL;
 	uint32_t i = 0, j = 0, k = 0, rc = 0;
 	char *print_buf = NULL, temp_buf[100];
-	uint32_t start_addr = 0, end_addr = 0, print_buf_size = 2000;
+	uint32_t print_buf_size = 2000;
+	unsigned long start_addr = 0, end_addr = 0;
 	int buf_addr_delta = -1;
 	int temp_delta = 0;
 	uint32_t debug_stream_id = 0;
 	uint32_t debug_buf_idx = 0;
 	uint32_t debug_buf_plane = 0;
-	uint32_t debug_start_addr = 0;
-	uint32_t debug_end_addr = 0;
+	unsigned long debug_start_addr = 0;
+	unsigned long debug_end_addr = 0;
 	uint32_t debug_frame_id = 0;
 	enum msm_isp_buffer_state debug_state;
 	unsigned long flags;
@@ -1375,8 +1388,8 @@ static int msm_isp_buf_mgr_debug(struct msm_isp_buf_mgr *buf_mgr,
 		debug_stream_id, debug_frame_id);
 	pr_err("%s: nearby buf index %d, plane %d, state %d\n", __func__,
 		debug_buf_idx, debug_buf_plane, debug_state);
-	pr_err("%s: buf address 0x%x -- 0x%x\n", __func__,
-		debug_start_addr, debug_end_addr);
+	pr_err("%s: buf address %pK -- %pK\n", __func__,
+		(void *)debug_start_addr, (void *)debug_end_addr);
 
 	if (BUF_DEBUG_FULL) {
 		print_buf = kzalloc(print_buf_size, GFP_ATOMIC);
@@ -1411,9 +1424,10 @@ static int msm_isp_buf_mgr_debug(struct msm_isp_buf_mgr *buf_mgr,
 							mapped_info[k].len;
 						snprintf(temp_buf,
 							sizeof(temp_buf),
-							" buf %d plane %d start_addr %x end_addr %x\n",
-							j, k, start_addr,
-							end_addr);
+							" buf %d plane %d start_addr %pK end_addr %pK\n",
+							j, k,
+							(void *)start_addr,
+							(void *)end_addr);
 						strlcat(print_buf, temp_buf,
 							print_buf_size);
 					}
