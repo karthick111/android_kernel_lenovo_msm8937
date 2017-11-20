@@ -2,7 +2,6 @@
 #define __LINUX_MSM_CAM_SENSOR_LENOVO_H
 
 #include <uapi/media/msm_cam_sensor.h>
-#include <uapi/media/msm_camsensor_sdk.h>
 
 #include <linux/compat.h>
 
@@ -34,7 +33,9 @@ struct msm_camera_sensor_slave_info32 {
 	char flash_name[32];
 	enum msm_sensor_camera_id_t camera_id;
 	uint16_t slave_addr;
+#ifdef CONFIG_LENOVO_DIR_CAMERA
 	uint16_t slave_addr2;
+#endif
 	enum i2c_freq_mode_t i2c_freq_mode;
 	enum msm_camera_i2c_reg_addr_type addr_type;
 	struct msm_sensor_id_info_t sensor_id_info;
@@ -122,10 +123,12 @@ struct msm_camera_i2c_array_write_config32 {
 	uint16_t slave_addr;
 };
 
+#ifdef CONFIG_LENOVO_DIR_CAMERA
 struct msm_mot_actuator_tuning_params_t32 {
 	int16_t infinity_dac;
 	int16_t macro_dac;
 };
+#endif
 
 struct msm_actuator_tuning_params_t32 {
 	int16_t initial_code;
@@ -142,8 +145,8 @@ struct msm_actuator_params_t32 {
 	uint16_t init_setting_size;
 	uint32_t i2c_addr;
 	enum i2c_freq_mode_t i2c_freq_mode;
-	enum msm_actuator_addr_type i2c_addr_type;
-	enum msm_actuator_data_type i2c_data_type;
+	enum msm_camera_i2c_reg_addr_type i2c_addr_type;
+	enum msm_camera_i2c_data_type i2c_data_type;
 	compat_uptr_t reg_tbl_params;
 	compat_uptr_t init_settings;
 	struct park_lens_data_t park_lens;
@@ -152,7 +155,9 @@ struct msm_actuator_params_t32 {
 struct msm_actuator_set_info_t32 {
 	struct msm_actuator_params_t32 actuator_params;
 	struct msm_actuator_tuning_params_t32 af_tuning_params;
+#ifdef CONFIG_LENOVO_DIR_CAMERA
 	struct msm_mot_actuator_tuning_params_t32 mot_af_tuning_params;
+#endif
 };
 
 struct sensor_init_cfg_data32 {

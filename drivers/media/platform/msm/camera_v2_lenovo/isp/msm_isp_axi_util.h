@@ -49,6 +49,7 @@ void msm_isp_reset_framedrop(struct vfe_device *vfe_dev,
 	struct msm_vfe_axi_stream *stream_info);
 
 int msm_isp_request_axi_stream(struct vfe_device *vfe_dev, void *arg);
+void msm_isp_get_avtimer_ts(struct msm_isp_timestamp *time_stamp);
 int msm_isp_cfg_axi_stream(struct vfe_device *vfe_dev, void *arg);
 int msm_isp_release_axi_stream(struct vfe_device *vfe_dev, void *arg);
 int msm_isp_update_axi_stream(struct vfe_device *vfe_dev, void *arg);
@@ -113,8 +114,11 @@ static inline void msm_isp_cfg_stream_scratch(struct vfe_device *vfe_dev,
 	pingpong_bit = (~(pingpong_status >> stream_info->wm[0]) & 0x1);
 	for (i = 0; i < stream_info->num_planes; i++)
 		msm_isp_cfg_wm_scratch(vfe_dev, stream_info->wm[i],
-				~pingpong_bit);
+				~pingpong_bit & 0x1);
 	stream_info->buf[pingpong_bit] = NULL;
 }
 
+int msm_isp_cfg_offline_ping_pong_address(struct vfe_device *vfe_dev,
+	struct msm_vfe_axi_stream *stream_info, uint32_t pingpong_status,
+	uint32_t buf_idx);
 #endif /* __MSM_ISP_AXI_UTIL_H__ */
