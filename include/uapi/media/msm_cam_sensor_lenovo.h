@@ -35,6 +35,7 @@
 #define MAX_REGULATOR 5
 
 #define MSM_V4L2_PIX_FMT_META v4l2_fourcc('M', 'E', 'T', 'A') /* META */
+#define MSM_V4L2_PIX_FMT_META10 v4l2_fourcc('M', 'E', '1', '0') /* META10 */
 #define MSM_V4L2_PIX_FMT_SBGGR14 v4l2_fourcc('B', 'G', '1', '4')
 	/* 14  BGBG.. GRGR.. */
 #define MSM_V4L2_PIX_FMT_SGBRG14 v4l2_fourcc('G', 'B', '1', '4')
@@ -289,7 +290,7 @@ struct msm_eeprom_cfg_data {
 	enum eeprom_cfg_type_t cfgtype;
 	uint8_t is_supported;
 	union {
-		char eeprom_name[MAX_SENSOR_NAME];
+		char eeprom_name[MAX_EEPROM_NAME];
 		struct eeprom_get_t get_data;
 		struct eeprom_read_t read_data;
 		struct eeprom_write_t write_data;
@@ -342,6 +343,13 @@ enum msm_actuator_cfg_type_t {
 	CFG_ACTUATOR_INIT,
 };
 
+struct msm_ois_opcode {
+	uint32_t prog;
+	uint32_t coeff;
+	uint32_t pheripheral;
+	uint32_t memory;
+};
+
 enum msm_ois_cfg_type_t {
 	CFG_OIS_INIT,
 	CFG_OIS_POWERDOWN,
@@ -350,10 +358,17 @@ enum msm_ois_cfg_type_t {
 	CFG_OIS_I2C_WRITE_SEQ_TABLE,
 };
 
+enum msm_ois_cfg_download_type_t {
+	CFG_OIS_DOWNLOAD,
+	CFG_OIS_DATA_CONFIG,
+};
+
 enum msm_ois_i2c_operation {
 	MSM_OIS_WRITE = 0,
 	MSM_OIS_POLL,
+//#ifdef CONFIG_LENOVO_DIR_CAMERA
 	MSM_OIS_READ,
+//#endif
 };
 
 struct reg_settings_ois_t {
@@ -388,10 +403,12 @@ struct msm_actuator_move_params_t {
 	struct damping_params_t *ringing_params;
 };
 
+//#ifdef CONFIG_LENOVO_DIR_CAMERA
 struct msm_mot_actuator_tuning_params_t {
 	int16_t infinity_dac;
 	int16_t macro_dac;
 };
+//#endif
 
 struct msm_actuator_tuning_params_t {
 	int16_t initial_code;
@@ -415,8 +432,8 @@ struct msm_actuator_params_t {
 	uint16_t init_setting_size;
 	uint32_t i2c_addr;
 	enum i2c_freq_mode_t i2c_freq_mode;
-	enum msm_actuator_addr_type i2c_addr_type;
-	enum msm_actuator_data_type i2c_data_type;
+	enum msm_camera_i2c_reg_addr_type i2c_addr_type;
+	enum msm_camera_i2c_data_type i2c_data_type;
 	struct msm_actuator_reg_params_t *reg_tbl_params;
 	struct reg_settings_t *init_settings;
 	struct park_lens_data_t park_lens;
@@ -425,7 +442,9 @@ struct msm_actuator_params_t {
 struct msm_actuator_set_info_t {
 	struct msm_actuator_params_t actuator_params;
 	struct msm_actuator_tuning_params_t af_tuning_params;
+//#ifdef CONFIG_LENOVO_DIR_CAMERA
 	struct msm_mot_actuator_tuning_params_t mot_af_tuning_params;
+//#endif
 };
 
 struct msm_actuator_get_info_t {
@@ -455,12 +474,22 @@ enum af_camera_name {
 	ACTUATOR_WEB_CAM_2,
 };
 
+struct msm_ois_slave_info {
+	char ois_name[MAX_OIS_NAME_SIZE];
+	uint32_t i2c_addr;
+	struct msm_ois_opcode opcode;
+};
 struct msm_ois_cfg_data {
 	int cfgtype;
 	union {
 		struct msm_ois_set_info_t set_info;
 		struct msm_camera_i2c_seq_reg_setting *settings;
 	} cfg;
+};
+
+struct msm_ois_cfg_download_data {
+	int cfgtype;
+	struct msm_ois_slave_info slave_info;
 };
 
 struct msm_actuator_set_position_t {
@@ -512,7 +541,9 @@ struct msm_flash_cfg_data_t {
 	union {
 		struct msm_flash_init_info_t *flash_init_info;
 		struct msm_camera_i2c_reg_setting_array *settings;
+//#ifdef CONFIG_LENOVO_DIR_CAMERA
 		struct msm_camera_i2c_read_config *read_config;
+//#endif
 	} cfg;
 };
 
@@ -568,6 +599,8 @@ struct sensor_init_cfg_data {
 #define VIDIOC_MSM_FLASH_CFG \
 	_IOWR('V', BASE_VIDIOC_PRIVATE + 13, struct msm_flash_cfg_data_t)
 
+#define VIDIOC_MSM_OIS_CFG_DOWNLOAD \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 14, struct msm_ois_cfg_download_data)
 
 #endif
 

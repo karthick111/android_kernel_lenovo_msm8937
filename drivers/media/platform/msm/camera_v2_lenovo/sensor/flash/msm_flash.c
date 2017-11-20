@@ -1,4 +1,4 @@
-/* Copyright (c) 2009-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2009-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -20,7 +20,7 @@
 #include "msm_cci.h"
 
 #undef CDBG
-#define CDBG(fmt, args...) pr_err(fmt, ##args)
+#define CDBG(fmt, args...) pr_debug(fmt, ##args)
 
 DEFINE_MSM_MUTEX(msm_flash_mutex);
 
@@ -150,7 +150,15 @@ static int32_t msm_flash_i2c_write_table(
 	conf_array.delay = settings->delay;
 	conf_array.reg_setting = settings->reg_setting_a;
 	conf_array.size = settings->size;
+#ifdef CONFIG_LENOVO_DIR_CAMERA
 	flash_ctrl->flash_i2c_client.addr_type = conf_array.addr_type;
+#endif
+
+	/* Validate the settings size */
+	if((!conf_array.size) || (conf_array.size > MAX_I2C_REG_SET)) {
+		pr_err("failed: invalid size %d", conf_array.size);
+		return -EINVAL;
+	}
 
 	return flash_ctrl->flash_i2c_client.i2c_func_tbl->i2c_write_table(
 		&flash_ctrl->flash_i2c_client, &conf_array);
@@ -269,6 +277,17 @@ static int32_t msm_flash_i2c_init(
 	flash_ctrl->power_info.power_down_setting_size =
 		flash_ctrl->power_setting_array.size_down;
 
+	if ((flash_ctrl->power_info.power_setting_size > MAX_POWER_CONFIG) ||
+	(flash_ctrl->power_info.power_down_setting_size > MAX_POWER_CONFIG)) {
+		pr_err("%s:%d invalid power setting size=%d size_down=%d\n",
+			__func__, __LINE__,
+			flash_ctrl->power_info.power_setting_size,
+			flash_ctrl->power_info.power_down_setting_size);
+		rc = -EINVAL;
+		goto msm_flash_i2c_init_fail;
+	}
+
+#ifdef CONFIG_LENOVO_DIR_CAMERA
 	rc = msm_camera_fill_vreg_params(
 			flash_ctrl->power_info.cam_vreg,
 			flash_ctrl->power_info.num_vreg,
@@ -282,15 +301,16 @@ static int32_t msm_flash_i2c_init(
 
 	/* Parse and fill vreg params for powerdown settings*/
 	rc = msm_camera_fill_vreg_params(
-		flash_ctrl->power_info.cam_vreg,
-		flash_ctrl->power_info.num_vreg,
-		flash_ctrl->power_info.power_down_setting,
-		flash_ctrl->power_info.power_down_setting_size);
+			flash_ctrl->power_info.cam_vreg,
+			flash_ctrl->power_info.num_vreg,
+			flash_ctrl->power_info.power_down_setting,
+			flash_ctrl->power_info.power_down_setting_size);
 	if (rc < 0) {
 		pr_err("%s:%d failed msm_camera_fill_vreg_params for PDOWN rc %d",
 			__func__, __LINE__, rc);
 		return rc;
 	}
+#endif
 
 	rc = msm_camera_power_up(&flash_ctrl->power_info,
 		flash_ctrl->flash_device_type,
@@ -371,7 +391,7 @@ static int32_t msm_flash_i2c_release(
 	int32_t rc = 0;
 
 	if (!(&flash_ctrl->power_info) || !(&flash_ctrl->flash_i2c_client)) {
-		pr_err("%s:%d failed: %p %p\n",
+		pr_err("%s:%d failed: %pK %pK\n",
 			__func__, __LINE__, &flash_ctrl->power_info,
 			&flash_ctrl->flash_i2c_client);
 		return -EINVAL;
@@ -385,7 +405,9 @@ static int32_t msm_flash_i2c_release(
 			__func__, __LINE__);
 		return -EINVAL;
 	}
+#ifdef CONFIG_LENOVO_DIR_CAMERA
 	flash_ctrl->flash_state = MSM_CAMERA_FLASH_RELEASE;
+#endif
 	return 0;
 }
 
@@ -409,6 +431,8 @@ static int32_t msm_flash_off(struct msm_flash_ctrl_t *flash_ctrl,
 	CDBG("Exit\n");
 	return 0;
 }
+
+#ifdef CONFIG_LENOVO_DIR_CAMERA
 static int32_t msm_flash_i2c_read_setting_array(
 	struct msm_flash_ctrl_t *flash_ctrl,
 	struct msm_flash_cfg_data_t *flash_data)
@@ -424,6 +448,7 @@ static int32_t msm_flash_i2c_read_setting_array(
 		&flash_data->cfg.read_config->data,
 		MSM_CAMERA_I2C_BYTE_DATA);
 }
+#endif
 
 static int32_t msm_flash_i2c_write_setting_array(
 	struct msm_flash_ctrl_t *flash_ctrl,
@@ -531,6 +556,64 @@ static int32_t msm_flash_init(
 	return 0;
 }
 
+static int32_t msm_flash_init_prepare(
+	struct msm_flash_ctrl_t *flash_ctrl,
+	struct msm_flash_cfg_data_t *flash_data)
+{
+#ifdef CONFIG_COMPAT
+	struct msm_flash_cfg_data_t flash_data_k;
+	struct msm_flash_init_info_t flash_init_info;
+	int32_t i = 0;
+	if(!is_compat_task()) {
+		/*for 64-bit usecase,it need copy the data to local memory*/
+		flash_data_k.cfg_type = flash_data->cfg_type;
+		for (i = 0; i < MAX_LED_TRIGGERS; i++) {
+			flash_data_k.flash_current[i] =
+				flash_data->flash_current[i];
+			flash_data_k.flash_duration[i] =
+				flash_data->flash_duration[i];
+		}
+
+		flash_data_k.cfg.flash_init_info = &flash_init_info;
+		if (copy_from_user(&flash_init_info,
+			(void *)(flash_data->cfg.flash_init_info),
+			sizeof(struct msm_flash_init_info_t))) {
+			pr_err("%s copy_from_user failed %d\n",
+				__func__, __LINE__);
+			return -EFAULT;
+		}
+		return msm_flash_init(flash_ctrl, &flash_data_k);
+	}
+	/*
+	 * for 32-bit usecase,it already copy the userspace
+	 * data to local memory in msm_flash_subdev_do_ioctl()
+	 * so here do not need copy from user
+	 */
+	return msm_flash_init(flash_ctrl, flash_data);
+#else
+	struct msm_flash_cfg_data_t flash_data_k;
+	struct msm_flash_init_info_t flash_init_info;
+	int32_t i = 0;
+	flash_data_k.cfg_type = flash_data->cfg_type;
+	for (i = 0; i < MAX_LED_TRIGGERS; i++) {
+		flash_data_k.flash_current[i] =
+			flash_data->flash_current[i];
+		flash_data_k.flash_duration[i] =
+			flash_data->flash_duration[i];
+	}
+
+	flash_data_k.cfg.flash_init_info = &flash_init_info;
+	if (copy_from_user(&flash_init_info,
+		(void *)(flash_data->cfg.flash_init_info),
+		sizeof(struct msm_flash_init_info_t))) {
+		pr_err("%s copy_from_user failed %d\n",
+			__func__, __LINE__);
+		return -EFAULT;
+	}
+	return msm_flash_init(flash_ctrl, &flash_data_k);
+#endif
+}
+
 static int32_t msm_flash_low(
 	struct msm_flash_ctrl_t *flash_ctrl,
 	struct msm_flash_cfg_data_t *flash_data)
@@ -549,12 +632,16 @@ static int32_t msm_flash_low(
 		if (flash_ctrl->torch_trigger[i]) {
 			max_current = flash_ctrl->torch_max_current[i];
 			if (flash_data->flash_current[i] >= 0 &&
+#ifdef CONFIG_LENOVO_DIR_CAMERA
 				flash_data->flash_current[i] <=
+#else
+				flash_data->flash_current[i] <
+#endif
 				max_current) {
 				curr = flash_data->flash_current[i];
 			} else {
 				curr = flash_ctrl->torch_op_current[i];
-				CDBG("LED current clamped to %d\n",
+				pr_debug("LED current clamped to %d\n",
 					curr);
 			}
 			CDBG("low_flash_current[%d] = %d", i, curr);
@@ -586,12 +673,16 @@ static int32_t msm_flash_high(
 		if (flash_ctrl->flash_trigger[i]) {
 			max_current = flash_ctrl->flash_max_current[i];
 			if (flash_data->flash_current[i] >= 0 &&
+#ifdef CONFIG_LENOVO_DIR_CAMERA
 				flash_data->flash_current[i] <=
+#else
+				flash_data->flash_current[i] <
+#endif
 				max_current) {
 				curr = flash_data->flash_current[i];
 			} else {
 				curr = flash_ctrl->flash_op_current[i];
-				CDBG("LED flash_current[%d] clamped %d\n",
+				pr_debug("LED flash_current[%d] clamped %d\n",
 					i, curr);
 			}
 			CDBG("high_flash_current[%d] = %d", i, curr);
@@ -637,7 +728,7 @@ static int32_t msm_flash_config(struct msm_flash_ctrl_t *flash_ctrl,
 
 	switch (flash_data->cfg_type) {
 	case CFG_FLASH_INIT:
-		rc = msm_flash_init(flash_ctrl, flash_data);
+		rc = msm_flash_init_prepare(flash_ctrl, flash_data);
 		break;
 	case CFG_FLASH_RELEASE:
 		if (flash_ctrl->flash_state == MSM_CAMERA_FLASH_INIT)
@@ -659,6 +750,7 @@ static int32_t msm_flash_config(struct msm_flash_ctrl_t *flash_ctrl,
 			rc = flash_ctrl->func_tbl->camera_flash_high(
 				flash_ctrl, flash_data);
 		break;
+#ifdef CONFIG_LENOVO_DIR_CAMERA
 	case CFG_FLASH_READ_I2C:
 		if (flash_ctrl->flash_state == MSM_CAMERA_FLASH_INIT)
 			rc = flash_ctrl->func_tbl->camera_flash_read(
@@ -669,6 +761,7 @@ static int32_t msm_flash_config(struct msm_flash_ctrl_t *flash_ctrl,
 			rc = flash_ctrl->func_tbl->camera_flash_write(
 				flash_ctrl, flash_data);
 		break;
+#endif
 	default:
 		rc = -EFAULT;
 		break;
@@ -923,8 +1016,10 @@ static int32_t msm_flash_get_dt_data(struct device_node *of_node,
 	struct msm_flash_ctrl_t *fctrl)
 {
 	int32_t rc = 0;
+#ifdef CONFIG_LENOVO_DIR_CAMERA
 	struct msm_camera_power_ctrl_t *power_info =
 		&fctrl->power_info;
+#endif
 
 	CDBG("called\n");
 
@@ -957,6 +1052,25 @@ static int32_t msm_flash_get_dt_data(struct device_node *of_node,
 		fctrl->flash_driver_type = FLASH_DRIVER_I2C;
 	}
 
+#ifdef CONFIG_LENOVO_DIR_CAMERA
+	/* Read the regulator information from device tree */
+	rc = msm_camera_get_dt_vreg_data(of_node, &power_info->cam_vreg,
+			&power_info->num_vreg);
+	if (rc < 0) {
+		pr_err("%s:%d msm_camera_get_dt_vreg_data failed rc %d\n",
+			__func__, __LINE__, rc);
+		return rc;
+	}
+#endif
+
+	/* Read the flash and torch source info from device tree node */
+	rc = msm_flash_get_pmic_source_info(of_node, fctrl);
+	if (rc < 0) {
+		pr_err("%s:%d msm_flash_get_pmic_source_info failed rc %d\n",
+			__func__, __LINE__, rc);
+		return rc;
+	}
+
 	/* Read the gpio information from device tree */
 	rc = msm_sensor_driver_get_gpio_data(
 		&(fctrl->power_info.gpio_conf), of_node);
@@ -967,28 +1081,14 @@ static int32_t msm_flash_get_dt_data(struct device_node *of_node,
 	}
 
 	if (fctrl->flash_driver_type == FLASH_DRIVER_DEFAULT)
-/*+Begin. wangdw10. Change flash type to PMIC for karate/karateplus project.2016.06.23*/
+#ifdef CONFIG_LENOVO_DIR_CAMERA
 		fctrl->flash_driver_type = FLASH_DRIVER_PMIC;
-/*+End.*/
+#else
+		fctrl->flash_driver_type = FLASH_DRIVER_GPIO;
+#endif
 	CDBG("%s:%d fctrl->flash_driver_type = %d", __func__, __LINE__,
 		fctrl->flash_driver_type);
 
-	/* Read the regulator information from device tree */
-	rc = msm_camera_get_dt_vreg_data(of_node, &power_info->cam_vreg,
-			&power_info->num_vreg);
-	if (rc < 0) {
-		pr_err("%s:%d msm_camera_get_dt_vreg_data failed rc %d\n",
-			__func__, __LINE__, rc);
-		return rc;
-	}
-
-	/* Read the flash and torch source info from device tree node */
-	rc = msm_flash_get_pmic_source_info(of_node, fctrl);
-	if (rc < 0) {
-		pr_err("%s:%d msm_flash_get_pmic_source_info failed rc %d\n",
-			__func__, __LINE__, rc);
-		return rc;
-	}
 	return rc;
 }
 
@@ -1015,20 +1115,22 @@ static long msm_flash_subdev_do_ioctl(
 	sd = vdev_to_v4l2_subdev(vdev);
 	u32 = (struct msm_flash_cfg_data_t32 *)arg;
 
-	flash_data.cfg_type = u32->cfg_type;
-	for (i = 0; i < MAX_LED_TRIGGERS; i++) {
-		flash_data.flash_current[i] = u32->flash_current[i];
-		flash_data.flash_duration[i] = u32->flash_duration[i];
-	}
 	switch (cmd) {
 	case VIDIOC_MSM_FLASH_CFG32:
+		flash_data.cfg_type = u32->cfg_type;
+		for (i = 0; i < MAX_LED_TRIGGERS; i++) {
+			flash_data.flash_current[i] = u32->flash_current[i];
+			flash_data.flash_duration[i] = u32->flash_duration[i];
+		}
 		cmd = VIDIOC_MSM_FLASH_CFG;
 		switch (flash_data.cfg_type) {
 		case CFG_FLASH_OFF:
 		case CFG_FLASH_LOW:
 		case CFG_FLASH_HIGH:
+#ifdef CONFIG_LENOVO_DIR_CAMERA
 		case CFG_FLASH_READ_I2C:
 		case CFG_FLASH_WRITE_I2C:
+#endif
 			flash_data.cfg.settings = compat_ptr(u32->cfg.settings);
 			break;
 		case CFG_FLASH_INIT:
@@ -1056,6 +1158,9 @@ static long msm_flash_subdev_do_ioctl(
 			break;
 		}
 		break;
+	case VIDIOC_MSM_FLASH_CFG:
+		pr_err("invalid cmd 0x%x received\n", cmd);
+		return -EINVAL;
 	default:
 		return msm_flash_subdev_ioctl(sd, cmd, arg);
 	}
@@ -1211,8 +1316,10 @@ static struct msm_flash_table msm_i2c_flash_table = {
 		.camera_flash_off = msm_flash_i2c_write_setting_array,
 		.camera_flash_low = msm_flash_i2c_write_setting_array,
 		.camera_flash_high = msm_flash_i2c_write_setting_array,
+#ifdef CONFIG_LENOVO_DIR_CAMERA
 		.camera_flash_read = msm_flash_i2c_read_setting_array,
 		.camera_flash_write = msm_flash_i2c_write_setting_array,
+#endif
 	},
 };
 
