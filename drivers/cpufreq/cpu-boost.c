@@ -114,6 +114,36 @@ static const struct kernel_param_ops param_ops_input_boost_freq = {
 };
 module_param_cb(input_boost_freq, &param_ops_input_boost_freq, NULL, 0644);
 
+//filter event
+//0: all event;
+//1: EV_KEY event
+//2: EV_ABS event
+static unsigned event_mask = 0;
+static int set_input_boost_event(const char *buf, const struct kernel_param *kp)
+{
+    unsigned value = 0;
+    if(sscanf(buf, "%u\n", &value) != 1) {
+        return -EINVAL;
+    }
+
+    if(event_mask != value)    
+        event_mask = value;
+
+    return 0;
+}
+
+static int get_input_boost_event(char *buf, const struct kernel_param *kp)
+{
+    int cnt = snprintf(buf, PAGE_SIZE, "%d\n", event_mask);
+    return cnt;
+}
+
+static const struct kernel_param_ops param_ops_boost_event = {
+	.set = set_input_boost_event,
+	.get = get_input_boost_event,
+};
+module_param_cb(input_boost_event, &param_ops_boost_event, NULL, 0644);
+
 /*
  * The CPUFREQ_ADJUST notifier is used to override the current policy min to
  * make sure policy min >= boost_min. The cpufreq framework then does the job
@@ -234,6 +264,13 @@ static void cpuboost_input_event(struct input_handle *handle,
 	if (!input_boost_enabled)
 		return;
 
+    if(event_mask) {
+        if(event_mask != type)
+            return;
+        if(code == BTN_TOUCH)
+            return;
+    }
+
 	now = ktime_to_us(ktime_get());
 	if (now - last_input_time < MIN_INPUT_INTERVAL)
 		return;
@@ -283,6 +320,7 @@ static void cpuboost_input_disconnect(struct input_handle *handle)
 }
 
 static const struct input_device_id cpuboost_ids[] = {
+    //{ .driver_info = 1 },
 	/* multi-touch touchscreen */
 	{
 		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |
