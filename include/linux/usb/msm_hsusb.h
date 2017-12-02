@@ -168,7 +168,8 @@ enum usb_chg_type {
 	USB_DCP_CHARGER,
 	USB_CDP_CHARGER,
 	USB_PROPRIETARY_CHARGER,
-	USB_FLOATED_CHARGER,
+//	USB_FLOATED_CHARGER,
+	USB_UNSUPPORTED_CHARGER,
 };
 
 /**
@@ -221,6 +222,12 @@ enum usb_ctrl {
 enum usb_id_state {
 	USB_ID_GROUND = 0,
 	USB_ID_FLOAT,
+};
+
+enum floated_chg_type {
+	FLOATING_AS_SDP = 0,
+	FLOATING_AS_DCP,
+	FLOATING_AS_INVALID,
 };
 
 /**
@@ -328,6 +335,7 @@ struct msm_otg_platform_data {
 	bool emulation;
 	bool enable_streaming;
 	bool enable_axi_prefetch;
+	enum floated_chg_type enable_floated_charger;
 	bool enable_sdp_typec_current_limit;
 	bool vbus_low_as_hostmode;
 };
@@ -541,6 +549,7 @@ struct msm_otg {
 	struct completion ext_chg_wait;
 	struct pinctrl *phy_pinctrl;
 	bool is_ext_chg_dcp;
+	bool is_ext_chg_detected;
 	struct qpnp_vadc_chip	*vadc_dev;
 	int ext_id_irq;
 	bool phy_irq_pending;
