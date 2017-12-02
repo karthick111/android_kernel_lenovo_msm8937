@@ -483,6 +483,13 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 			    tasksize <= selected_tasksize)
 				continue;
 		}
+
+                /* memory usage spike may cause cache drop under adj0 limitation,
+                just avoid important task being killed */
+                if (!strcmp(p->comm, "com.lenovo.scg") &&
+                    (oom_score_adj == 0))
+                    continue;
+
 		selected = p;
 		selected_tasksize = tasksize;
 		selected_oom_score_adj = oom_score_adj;
