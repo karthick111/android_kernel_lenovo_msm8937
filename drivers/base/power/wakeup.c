@@ -16,10 +16,9 @@
 #include <linux/debugfs.h>
 #include <linux/types.h>
 #include <trace/events/power.h>
-
 #include "power.h"
 
-/*
+0/*
  * If set, the suspend/hibernate code will abort transitions to a sleep state
  * if wakeup events are registered during or immediately before the transition.
  */
@@ -420,7 +419,6 @@ EXPORT_SYMBOL_GPL(device_set_wakeup_enable);
 static void wakeup_source_activate(struct wakeup_source *ws)
 {
 	unsigned int cec;
-
 
 	/*
 	 * active wakeup source should bring the system
