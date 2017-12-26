@@ -103,7 +103,7 @@
 			focaltech,irq-gpio = <&tlmm 65 0x1>;
 			focaltech,display-coords = <0 0 1080 1920>;
 			focaltech,panel-coords = <0 0 1080 1920>;
-			focaltech,button-map= <580 172 158>; /* APP_SWITCH HOME BACK */
+			focaltech,button-map= <139 172 158>; /* APP_SWITCH HOME BACK */
 			focaltech,button-y-coord = <2040>;
 			focaltech,button-x-coords = <200 500 800>;
 			focaltech,no-force-update;
