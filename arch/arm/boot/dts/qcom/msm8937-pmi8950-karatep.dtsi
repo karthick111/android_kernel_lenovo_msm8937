@@ -14,6 +14,7 @@
 #include "karatep-audio.dtsi"
 #include "msm8937-camera-sensor-karatep.dtsi"
 #include "dsi-panel-hx8399c-tm-1080p-video.dtsi"
+#include "dsi-panel-hx8399c-yas-1080p-video.dtsi"
 #include "dsi-panel-ili7807d-djn-1080p-video.dtsi"
 #include "dsi-panel-nt35596-tm-1080p-video.dtsi"
 
@@ -48,7 +49,10 @@
 
 &dsi_hx8399c_tm_1080p_video {
 	qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
-	//qcom,esd-check-enabled;
+};
+
+&dsi_hx8399c_yas_1080p_video {
+	qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
 };
 
 &spmi_bus {

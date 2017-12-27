@@ -14,7 +14,6 @@
 #include "msm-pmi8950.dtsi"
 #include "msm8937-qrd.dtsi"
 #include "msm8937-mdss-panels.dtsi"
-#include "dsi-panel-otm1901a-tm-1080p-video.dtsi"
 
 &spmi_bus {
 	qcom,pmi8950@2 {
@@ -72,37 +71,6 @@
 		qcom,torch-source = <&pmi8950_torch0>;
 		qcom,switch-source = <&pmi8950_switch>;
 	};
-
-	led_flash1: qcom,camera-flash {
-		cell-index = <0>;
-		compatible = "qcom,camera-flash";
-		qcom,flash-type = <1>;
-		qcom,flash-source = <&pmi8950_flash0 &pmi8950_flash1>;
-		qcom,torch-source = <&pmi8950_torch0 &pmi8950_torch1>;
-		qcom,switch-source = <&pmi8950_switch>;
-	};
-};
-
-&tlmm {
-	pmx_mdss: pmx_mdss {
-		mdss_dsi_active: mdss_dsi_active {
-			mux {
-				pins = "gpio60";
-			};
-			config {
-				pins = "gpio60";
-			};
-		};
-		mdss_dsi_suspend: mdss_dsi_suspend {
-			mux {
-				pins = "gpio60";
-			};
-			config {
-				pins = "gpio60";
-			};
-		};
-	};
-
 };
 
 &mdss_mdp {
@@ -117,7 +85,7 @@
 	lab-supply = <&lab_regulator>;
 	ibb-supply = <&ibb_regulator>;
 
-	qcom,dsi-pref-prim-pan = <&dsi_otm1901a_tm_1080p_video>;
+	qcom,dsi-pref-prim-pan = <&dsi_r69006_1080p_cmd>;
 	pinctrl-names = "mdss_default", "mdss_sleep";
 	pinctrl-0 = <&mdss_dsi_active &mdss_te_active>;
 	pinctrl-1 = <&mdss_dsi_suspend &mdss_te_suspend>;
@@ -165,14 +133,9 @@
 	qcom,esd-check-enabled;
 };
 
-&dsi_otm1901a_tm_1080p_video {
+&dsi_r69006_1080p_video {
 	qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
-	//qcom,esd-check-enabled;
-};
-
-&dsi_hx8399c_yas_1080p_video {
-	qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
-	//qcom,esd-check-enabled;
+	qcom,esd-check-enabled;
 };
 
 &spmi_bus {

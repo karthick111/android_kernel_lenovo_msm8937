@@ -14,7 +14,6 @@
 #include "msm-pmi8937.dtsi"
 #include "msm8937-qrd.dtsi"
 #include "msm8937-mdss-panels.dtsi"
-#include "dsi-panel-otm1901a-tm-1080p-video.dtsi"
 
 &spmi_bus {
 	qcom,pmi8937@2 {
@@ -111,7 +110,7 @@
 };
 
 &mdss_dsi0 {
-	qcom,dsi-pref-prim-pan = <&dsi_otm1901a_tm_1080p_video>;
+	qcom,dsi-pref-prim-pan = <&dsi_hx8394f_720p_video>;
 	pinctrl-names = "mdss_default", "mdss_sleep";
 	pinctrl-0 = <&mdss_dsi_active &mdss_te_active>;
 	pinctrl-1 = <&mdss_dsi_suspend &mdss_te_suspend>;
@@ -134,8 +133,8 @@
 	status = "disabled";
 };
 
-&dsi_otm1901a_tm_1080p_video {
-//	qcom,esd-check-enabled;
+&dsi_hx8394f_720p_video {
+	qcom,esd-check-enabled;
 	qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
 };
 

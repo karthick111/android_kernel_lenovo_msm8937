@@ -14,6 +14,7 @@
 #include "msm8937-camera-sensor-karate.dtsi"
 #include "dsi-panel-ili7807d-yas-1080p-video.dtsi"
 #include "dsi-panel-ili7807d-yas-2nd-1080p-video.dtsi"
+#include "dsi-panel-otm1901a-tm-1080p-video.dtsi"
 #include "dsi-panel-otm1901a-tm-g6-1080p-video.dtsi"
 
  / {
@@ -30,8 +31,16 @@
         qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
 };
 
+&dsi_otm1901a_tm_1080p_video {
+	qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
+};
+
 &dsi_otm1901a_tm_g6_1080p_video {
 	qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
+};
+
+&mdss_dsi0 {
+	qcom,dsi-pref-prim-pan = <&dsi_otm1901a_tm_1080p_video>;
 };
 
 &spmi_bus {

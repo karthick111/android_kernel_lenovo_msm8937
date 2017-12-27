@@ -1,4 +1,3 @@
-
 /*
  * Copyright (c) 2015, The lenovo mobile Inc. All rights reserved.
  *
@@ -19,6 +18,19 @@
 / {
 	aliases {
 		fpc1020 = &fpc1020;
+	};
+};
+
+&spmi_bus {
+	qcom,pm8937@0 {
+		qcom,power-on@800 {
+			qcom,pon_1 {
+				qcom,support-reset = <1>;
+				qcom,s1-timer = <6720>;
+				qcom,s2-timer = <0>;
+				qcom,s2-type = <7>;
+			};
+		};
 	};
 };
 
@@ -115,6 +127,25 @@
 			};
 		};
 	};
+
+	pmx_mdss: pmx_mdss {
+		mdss_dsi_active: mdss_dsi_active {
+			mux {
+				pins = "gpio60";
+			};
+			config {
+				pins = "gpio60";
+			};
+		};
+		mdss_dsi_suspend: mdss_dsi_suspend {
+			mux {
+				pins = "gpio60";
+			};
+			config {
+				pins = "gpio60";
+			};
+                };
+        };
 
 	pmx_sgm3710 {
 		sgm3710_act: sgm3710_act {
