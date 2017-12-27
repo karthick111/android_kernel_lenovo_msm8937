@@ -24,26 +24,6 @@
 	qcom,follow-otst2-rb-disabled;
 };
 
-&spmi_bus {
-	qcom,pmi8950@2 {
-		qcom,leds@a100 {
-			status = "okay";
-			qcom,led_mpp_2 {
-				label = "mpp";
-				linux,name = "green";
-				linux,default-trigger = "none";
-				qcom,default-state = "off";
-				qcom,max-current = <5>;
-				qcom,current-setting = <5>;
-				qcom,id = <6>;
-				qcom,mode = "manual";
-				qcom,source-sel = <1>;
-				qcom,mode-ctrl = <0x60>;
-			};
-		};
-	};
-};
-
 &wled {
 	qcom,cons-sync-write-delay-us = <1000>;
 };
