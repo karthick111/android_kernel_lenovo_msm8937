@@ -168,8 +168,3 @@
 		drive-strength = <12>;
 	};
 };
-
-&flash_led {
-	/delete-node/ qcom,flash_1;
-	/delete-node/ qcom,torch_1;
-};
