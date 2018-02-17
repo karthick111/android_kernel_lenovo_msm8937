@@ -61,7 +61,6 @@ struct fpc1020_data {
 	struct pinctrl *ts_pinctrl;
 	struct pinctrl_state *gpio_state_active;
 	struct pinctrl_state *gpio_state_suspend;
-	struct wakeup_source ttw_wl;
 };
 
 static int fpc1020_request_named_gpio(struct fpc1020_data *fpc1020,
@@ -207,7 +206,7 @@ static irqreturn_t fpc1020_irq_handler(int irq, void *handle)
 	dev_dbg(fpc1020->dev, "%s\n", __func__);
 
 	if (fpc1020->wakeup_enabled) {
-		__pm_wakeup_event(&fpc1020->ttw_wl,
+		pm_wakeup_event(fpc1020->dev,
 					msecs_to_jiffies(FPC_TTW_HOLD_TIME));
 	}
 
@@ -285,8 +284,6 @@ static int fpc1020_probe(struct platform_device *pdev)
 	/* Request that the interrupt should be wakeable */
 	enable_irq_wake(gpio_to_irq(fpc1020->irq_gpio));
 
-	wakeup_source_init(&fpc1020->ttw_wl, "fpc_ttw_wl");
-
 	rc = sysfs_create_group(&dev->kobj, &attribute_group);
 	if (rc) {
 		dev_err(dev, "could not create sysfs\n");
@@ -308,6 +305,8 @@ static int fpc1020_probe(struct platform_device *pdev)
 
 	gpio_set_value(fpc1020->rst_gpio, 1);
 	udelay(FPC1020_RESET_HIGH2_US);
+
+	device_init_wakeup(dev, true);
 
 	dev_info(dev, "%s: ok\n", __func__);
 exit:
