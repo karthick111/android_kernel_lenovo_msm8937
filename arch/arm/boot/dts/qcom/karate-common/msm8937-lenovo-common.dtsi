@@ -30,6 +30,16 @@
 	};
 };
 
+&firmware {
+	android {
+		fstab {
+			vendor {
+				dev = "/dev/block/platform/soc/7824900.sdhci/by-name/preload";
+			};
+		};
+	};
+};
+
 &soc {
 	sound {
 		qcom,model = "msm8952-sku1-snd-card";
