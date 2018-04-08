@@ -1711,7 +1711,7 @@ void msm_jpegdma_hw_put(struct msm_jpegdma_device *dma)
  */
 static int msm_jpegdma_hw_attach_iommu(struct msm_jpegdma_device *dma)
 {
-	int ret = -EINVAL;
+	int ret;
 
 	mutex_lock(&dma->lock);
 
