@@ -1,0 +1,30 @@
+/* Copyright (c) 2015, Lenovo mobile Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+/dts-v1/;
+
+#include "karate/msm8937-pmi8950-karate-row.dtsi"
+
+/ {
+	qcom,board-id= <0xb 0x3>;
+	qcom,pmic-id = <0x10019 0x020011 0x0 0x0>;
+};
+
+/ {
+	qrd_batterydata: qcom,battery-data {
+		qcom,batt-id-range-pct = <15>;
+		#include "karate/batterydata-bl267-karate-3080mah.dtsi"
+		#include "karate/batterydata-bl267-karate-2-3080mah.dtsi"
+		#include "karate/batterydata-bl272scud-karate_power-4000mah.dtsi"
+		#include "karate/batterydata-bl272vk-karate-4000mah.dtsi"
+	};
+};
