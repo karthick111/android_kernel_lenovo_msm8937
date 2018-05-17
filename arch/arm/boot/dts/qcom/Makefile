@@ -173,6 +173,15 @@ dtb-$(CONFIG_ARCH_SDX20) += sdx20-emmc-cdp.dtb \
 	sdx20-v2-emmc-pcie-ep-mtp.dtb \
 	sdx20-v2-nand-pcie-ep-mtp.dtb
 
+ifeq ($(CONFIG_MACH_LENOVO_KARATE),y)
+dtb-$(CONFIG_ARCH_MSM8937) += \
+        msm8937-pmi8950-karate.dtb \
+        msm8937-pmi8950-karate-row.dtb
+else ifeq ($(CONFIG_MACH_LENOVO_KARATEP),y)
+dtb-$(CONFIG_ARCH_MSM8937) += \
+        msm8937-pmi8950-karatep.dtb \
+        msm8937-pmi8950-karatep-row.dtb
+else
 dtb-$(CONFIG_ARCH_MSM8937) += msm8937-rumi.dtb \
 	msm8937-pmi8950-cdp.dtb \
 	msm8937-pmi8937-cdp.dtb \
@@ -192,6 +201,7 @@ dtb-$(CONFIG_ARCH_MSM8937) += msm8937-rumi.dtb \
 	apq8037-pmi8937-cdp.dtb \
 	apq8037-pmi8950-mtp.dtb \
 	apq8037-pmi8937-mtp.dtb
+endif
 
 dtb-$(CONFIG_ARCH_MSM8917) += msm8917-rumi.dtb \
 	apq8017-pmi8937-cdp.dtb \
