@@ -1,0 +1,134 @@
+/* Copyright (c) 2016, Lenovo mobile Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+#include "../karate-common/msm8937-lenovo-common.dtsi"
+#include "msm8937-camera-sensor-karate.dtsi"
+#include "dsi-panel-ili7807d-yas-1080p-video.dtsi"
+#include "dsi-panel-otm1901a-tm-1080p-video.dtsi"
+#include "dsi-panel-otm1901a-tm-g6-1080p-video.dtsi"
+
+ / {
+        model = "karate";
+	compatible ="qcom,msm8937-pmi8950-karate", "qcom,msm8937-pmi8950-qrd-sku1",
+		   "qcom,msm8937-qrd", "qcom,msm8937", "qcom,qrd";
+};
+
+&dsi_ili7807d_yas_1080p_video {
+	qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
+};
+
+&dsi_otm1901a_tm_1080p_video {
+	qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
+};
+
+&dsi_otm1901a_tm_g6_1080p_video {
+	qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
+};
+
+&mdss_dsi0 {
+	qcom,dsi-pref-prim-pan = <&dsi_otm1901a_tm_1080p_video>;
+        qcom,regulator-ldo-mode;
+        qcom,platform-regulator-settings = [02 09 03 00 20 00 01];
+};
+
+&pmi8950_charger {
+        qcom,battery-data = <&qrd_batterydata>;
+        qcom,float-voltage-mv = <4400>;
+        qcom,chg-led-sw-controls;
+        qcom,chg-led-support;
+        qcom,fg-cc-cv-threshold-mv = <4360>;
+        qcom,fastchg-current-ma = <2000>;
+        qcom,resume-delta-mv = <50>;
+        qcom,thermal-mitigation = <2000 1000 900 600>;
+        /delete-property/ qcom,parallel-usb-min-current-ma;
+        /delete-property/ qcom,parallel-usb-9v-min-current-ma;
+        /delete-property/ qcom,parallel-allowed-lowering-ma;
+        qcom,charge-unknown-battery;
+        status = "okay";
+};
+
+&pmi8950_fg {
+        qcom,battery-data = <&qrd_batterydata>;
+        qcom,bad-battery-detection-enable;
+        qcom,hold-soc-while-full;
+        qcom,thermal-coefficients = [DA 86 F0 50 08 3C];
+        qcom,fg-cutoff-voltage-mv = <3300>;
+        qcom,resume-soc = <99>;
+        qcom,vbat-estimate-diff-mv = <100>;
+};
+
+&int_codec {
+        qcom,model = "msm8937-karate-snd-card";
+};
+
+&sdhc_2 {
+        cd-gpios = <&tlmm 67 0>; /* Active High */
+};
+
+&soc {
+	i2c@78b7000 {
+		/delete-node/ synaptics@4b;
+		focaltech@38 {
+			compatible = "focaltech,fts";
+			reg = <0x38>;
+			interrupt-parent = <&tlmm>;
+			interrupts = <65 0x2002>;
+			vdd-supply = <&pm8937_l10>;
+			vcc_i2c-supply = <&pm8937_l5>;
+			/* pins used by touchscreen */
+			pinctrl-names = "pmx_ts_active",
+					"pmx_ts_suspend",
+					"pmx_ts_release";
+			pinctrl-0 = <&ts_int_active &ts_reset_active>;
+			pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
+			pinctrl-2 = <&ts_release>;
+			focaltech,name = "ft5346i";
+			focaltech,family-id = <0x54>;
+			focaltech,reset-gpio = <&tlmm 64 0x0>;
+			focaltech,irq-gpio = <&tlmm 65 0x1>;
+			focaltech,display-coords = <0 0 1080 1920>;
+			focaltech,panel-coords = <0 0 1080 1920>;
+			focaltech,button-map= <580 172 158>; /* APP_SWITCH HOME BACK */
+			focaltech,button-y-coord = <2040>;
+			focaltech,button-x-coords = <120 500 900>;
+			focaltech,no-force-update;
+			focaltech,i2c-pull-up;
+			focaltech,group-id = <1>;
+			focaltech,hard-reset-delay-ms = <20>;
+			focaltech,soft-reset-delay-ms = <200>;
+			focaltech,num-max-touches = <10>;
+			focaltech,fw-delay-aa-ms = <2>;
+			focaltech,fw-delay-55-ms = <2>;
+			focaltech,fw-upgrade-id1 = <0x54>;
+			focaltech,fw-upgrade-id2 = <0x2c>;
+			focaltech,fw-delay-readid-ms = <20>;
+			focaltech,fw-delay-era-flsh-ms = <2000>;
+			focaltech,fw-auto-cal;
+			focaltech,fw-auto-upgrade;
+			focaltech,fw-name = "FT_5x46_Ref_V0b_D01_20160513_app.i";
+		};
+	};
+};
+
+&spmi_bus {
+	qcom,pmi8950@3 {
+		labibb: qpnp-labibb-regulator {
+			ibb_regulator: qcom,ibb@dc00 {
+				qcom,qpnp-ibb-init-lcd-voltage = <5000000>;
+			};
+
+			lab_regulator: qcom,lab@de00 {
+				qcom,qpnp-ibb-init-lcd-voltage = <5000000>;
+			};
+		};
+	};
+};
