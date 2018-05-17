@@ -1,0 +1,88 @@
+/* Copyright (c) 2015, Lenovo mobile Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+/dts-v1/;
+
+#include "karatep/msm8937-pmi8950-karatep.dtsi"
+
+/ {
+	qcom,board-id= <0xb 0x2>;
+	qcom,pmic-id = <0x10019 0x020011 0x0 0x0>;
+};
+
+/ {
+	qrd_batterydata: qcom,battery-data {
+		qcom,batt-id-range-pct = <5>;
+		#include "karatep/batterydata-qrd-sku1-4v4-2800mah.dtsi"
+	};
+};
+
+&pm8937_rtc {
+	qcom,qpnp-rtc-alarm-pwrup = <1>;
+};
+
+&pmi8950_charger {
+	qcom,battery-data = <&qrd_batterydata>;
+	qcom,float-voltage-mv = <4200>;
+	qcom,chg-led-sw-controls;
+	qcom,chg-led-support;
+	qcom,fastchg-current-ma = <2000>;
+	qcom,resume-delta-mv = <50>;
+	qcom,thermal-mitigation = <2000 1000 900 600>;
+	/delete-property/ qcom,parallel-usb-min-current-ma;
+	/delete-property/ qcom,parallel-usb-9v-min-current-ma;
+	/delete-property/ qcom,parallel-allowed-lowering-ma;
+	qcom,charge-unknown-battery;
+	status = "okay";
+};
+
+&pmi8950_fg {
+	qcom,battery-data = <&qrd_batterydata>;
+	qcom,cold-bat-decidegc = <(-100)>;
+	qcom,cool-bat-decidegc = <(-100)>;
+	qcom,hot-bat-decidegc = <550>;
+	qcom,warm-bat-decidegc = <550>;
+	qcom,bad-battery-detection-enable;
+	qcom,hold-soc-while-full;
+	qcom,resume-soc = <99>;
+	qcom,vbat-estimate-diff-mv = <100>;
+};
+
+&pmi8950_flash0 {
+	qcom,current = <600>;
+};
+
+&pmi8950_flash1 {
+	qcom,current = <600>;
+};
+
+&pmi8950_switch {
+	qcom,current = <600>;
+};
+
+&pmi_haptic {
+	qcom,vmax-mv = <2800>;
+};
+
+&usb_otg {
+        qcom,usbin-vadc = <&pmi8950_vadc>;
+};
+
+&int_codec {
+	qcom,model = "msm8937-karatep-snd-card";
+};
+
+&i2c_2 {
+	pericom-type-c@1d {
+		status="disabled";
+	};
+};
