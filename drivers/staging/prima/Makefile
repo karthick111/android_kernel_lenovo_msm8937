@@ -3,14 +3,6 @@ default: all
 KBUILD_OPTIONS := WLAN_ROOT=$(PWD)
 KBUILD_OPTIONS += MODNAME=wlan
 
-subdir-ccflags-y += \
-	-Wno-array-bounds \
-	-Wno-empty-body \
-	-Wno-enum-conversion \
-	-Wno-non-literal-null-conversion \
-	-Wno-parentheses-equality \
-	-Wno-typedef-redefinition
-
 all::
 	$(MAKE) -C $(KERNEL_SOURCE) $(KBUILD_OPTIONS) $(EXTRA_CFLAGS) ARCH=$(ARCH) \
 		SUBDIRS=$(CURDIR) CC=${CC} modules
