@@ -453,7 +453,7 @@ unsigned char ReadRawData(unsigned char Freq, unsigned char LineNum, int ByteNum
 	I2C_wBuffer[1] = 0;//start index
 	ReCode = Comm_Base_IIC_IO(I2C_wBuffer, 2, NULL, 0);//	set rawdata start addr		
 
-	if((ReCode == ERROR_CODE_OK))
+	if(ReCode == ERROR_CODE_OK)
 	{			
 		if(ReCode == ERROR_CODE_OK)
 		{
