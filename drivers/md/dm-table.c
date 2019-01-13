@@ -1297,13 +1297,13 @@ static void dm_table_set_integrity(struct dm_table *t)
 static int device_flush_capable(struct dm_target *ti, struct dm_dev *dev,
 				sector_t start, sector_t len, void *data)
 {
-	unsigned flush = (*(unsigned *)data);
+	unsigned long flush = (unsigned long) data;
 	struct request_queue *q = bdev_get_queue(dev->bdev);
 
-	return q && (q->flush_flags & flush);
+	return q && (q->queue_flags & flush);
 }
 
-static bool dm_table_supports_flush(struct dm_table *t, unsigned flush)
+static bool dm_table_supports_flush(struct dm_table *t, unsigned long flush)
 {
 	struct dm_target *ti;
 	unsigned i = 0;
@@ -1324,7 +1324,7 @@ static bool dm_table_supports_flush(struct dm_table *t, unsigned flush)
 			return 1;
 
 		if (ti->type->iterate_devices &&
-		    ti->type->iterate_devices(ti, device_flush_capable, &flush))
+		    ti->type->iterate_devices(ti, device_flush_capable, (void *) flush))
 			return 1;
 	}
 
@@ -1455,8 +1455,8 @@ static bool dm_table_supports_discards(struct dm_table *t)
 void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 			       struct queue_limits *limits)
 {
-	unsigned flush = 0;
-
+    bool wc = false, fua = false;
+    
 	/*
 	 * Copy table's limits to the DM device's request_queue
 	 */
@@ -1467,12 +1467,13 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 	else
 		queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, q);
 
-	if (dm_table_supports_flush(t, REQ_FLUSH)) {
-		flush |= REQ_FLUSH;
-		if (dm_table_supports_flush(t, REQ_FUA))
-			flush |= REQ_FUA;
+	if (dm_table_supports_flush(t, (1UL << QUEUE_FLAG_WC))) {
+        wc =  true;
+		if (dm_table_supports_flush(t, (1UL << QUEUE_FLAG_FUA)))
+            fua = true;
 	}
-	blk_queue_flush(q, flush);
+
+    blk_queue_write_cache(q, wc, fua);
 
 	if (!dm_table_discard_zeroes_data(t))
 		q->limits.discard_zeroes_data = 0;

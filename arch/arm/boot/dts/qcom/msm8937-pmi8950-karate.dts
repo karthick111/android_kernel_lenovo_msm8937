@@ -1,0 +1,63 @@
+/* Copyright (c) 2015, Lenovo mobile Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+/dts-v1/;
+
+#include "msm8937-pmi8950-karate.dtsi"
+
+/ {
+	qcom,board-id= <0xb 0x1>;
+	qcom,pmic-id = <0x10019 0x020011 0x0 0x0>;
+};
+
+/ {
+	qrd_batterydata: qcom,battery-data {
+		qcom,batt-id-range-pct = <5>;
+		#include "2444194_Lenovo_BL267_3080mAh_averaged_MasterSlave_Jun6th2016_PMI8952GUI20016.dtsi"
+	};
+};
+
+&pmi8950_charger {
+	qcom,battery-data = <&qrd_batterydata>;
+	qcom,float-voltage-mv = <4400>;
+	qcom,chg-led-sw-controls;
+	qcom,chg-led-support;
+	qcom,fg-cc-cv-threshold-mv = <4360>;
+	qcom,fastchg-current-ma = <2000>;
+	status = "okay";
+};
+
+&pmi8950_fg {
+	qcom,battery-data = <&qrd_batterydata>;
+	qcom,bad-battery-detection-enable;
+	qcom,hold-soc-while-full;
+	qcom,thermal-coefficients = [DA 86 F0 50 08 3C];
+	qcom,fg-cutoff-voltage-mv = <3300>;
+};
+&usb_otg {
+       qcom,usbin-vadc = <&pmi8950_vadc>;
+};
+
+
+&int_codec {
+	qcom,model = "msm8937-karate-snd-card";
+};
+
+&i2c_2 {
+	pericom-type-c@1d {
+		status="disabled";
+	};
+};
+
+&sdhc_2 {
+	cd-gpios = <&tlmm 67 0>; /* Active High */
+};

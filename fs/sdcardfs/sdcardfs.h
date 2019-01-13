@@ -200,6 +200,8 @@ struct sdcardfs_sb_info {
 	struct sdcardfs_mount_options options;
 	spinlock_t lock;	/* protects obbpath */
 	char *obbpath_s;
+        /* Secure zone panzh2 add for hack OpenUserData */
+        char ownersdcard_s[PATH_MAX];
 	struct path obbpath;
 	void *pkgl_id;
 	struct list_head list;
@@ -414,6 +416,8 @@ extern int need_graft_path(struct dentry *dentry);
 extern int is_base_obbpath(struct dentry *dentry);
 extern int is_obbpath_invalid(struct dentry *dentry);
 extern int setup_obb_dentry(struct dentry *dentry, struct path *lower_path);
+extern int setup_secure_openuserdata_dentry(struct dentry *dentry, struct path *lower_path);
+extern int is_secure_openuserdata_path(struct dentry *dentry);
 
 /* locking helpers */
 static inline struct dentry *lock_parent(struct dentry *dentry)
@@ -513,11 +517,14 @@ static inline int check_min_free_space(struct dentry *dentry, size_t size, int d
 		return 1;
 }
 
+extern int g_sdcardfs_secureid;
+
 /* Copies attrs and maintains sdcardfs managed attrs */
 static inline void sdcardfs_copy_and_fix_attrs(struct inode *dest, const struct inode *src)
 {
 	dest->i_mode = (src->i_mode  & S_IFMT) | get_mode(SDCARDFS_I(dest));
 	dest->i_uid = make_kuid(&init_user_ns, SDCARDFS_I(dest)->d_uid);
+
 	dest->i_gid = make_kgid(&init_user_ns, get_gid(SDCARDFS_I(dest)));
 	dest->i_rdev = src->i_rdev;
 	dest->i_atime = src->i_atime;

@@ -268,6 +268,18 @@ static struct dentry *__sdcardfs_lookup(struct dentry *dentry,
 			}
 		}
 
+                /* Secure Zone panzh2 hack OpenUserData for Secure zone */
+                if(is_secure_openuserdata_path(dentry)) {
+
+                        err = setup_secure_openuserdata_dentry(dentry, &lower_path);
+
+                        if(err) {
+                                sdcardfs_put_reset_orig_path(dentry);
+                                goto out;
+                        }
+                }
+
+
 		sdcardfs_set_lower_path(dentry, &lower_path);
 		err = sdcardfs_interpose(dentry, dentry->d_sb, &lower_path, id);
 		if (err) /* path_put underlying path on error */

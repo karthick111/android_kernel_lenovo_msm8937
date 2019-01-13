@@ -1,0 +1,96 @@
+&tlmm {
+	was4760_analog_en {
+		was4760_analog_act: was4760_analog_act {
+			mux {
+				pins = "gpio129";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio129";
+				drive-strength = <8>;
+				output-high;
+				bias-disable;
+			};
+		};
+
+		was4760_analog_sus: was4760_analog_sus {
+			mux {
+				pins = "gpio129";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio129";
+				drive-strength = <8>;
+				output-low;
+				bias-disable;
+			};
+		};
+	};
+
+	aw87319-reset-gpio {
+		aw87319_rst_high: high {
+			mux {
+				pins = "gpio124";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio124";
+				drive-strength = <8>;
+				output-high;
+				bias-disable;
+			};
+		};
+
+		aw87319_rst_low: low {
+			mux {
+				pins = "gpio124";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio124";
+				drive-strength = <8>;
+				output-low;
+				bias-disable;
+			};
+		};
+	};
+};
+
+&i2c_5 {
+	aw87319@58 {
+		compatible = "awinic,aw87319";
+		reg = <0x58>;
+		pinctrl-names = "aw87319_rst_high", "aw87319_rst_low";
+		pinctrl-0 = <&aw87319_rst_high>;
+		pinctrl-1 = <&aw87319_rst_low>;
+	};
+};
+
+&ts3a227e {
+	pinctrl-0 = <&was4760_analog_act>;
+	pinctrl-1 = <&was4760_analog_sus>;
+};
+
+&soc {
+	sound {
+		qcom,ext-pa-type = "aw87319";
+		qcom,msm-gpios =
+			"pri_i2s",
+			"pri_i2s_act";
+		qcom,pinctrl-names =
+			"all_off",
+			"pri_i2s_act";
+		pinctrl-names =
+			"all_off",
+			"pri_i2s_act";
+		pinctrl-0 = <&cdc_pdm_lines_sus
+				&cdc_pdm_lines_2_sus>;
+		pinctrl-1 = <&cdc_pdm_lines_act
+				&cdc_pdm_lines_2_act>;
+	};
+};
+

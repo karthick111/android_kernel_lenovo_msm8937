@@ -2609,6 +2609,7 @@ static int mass_storage_function_init(struct android_usb_function *f,
 	}
 
 	fsg_mod_data.removable[0] = true;
+        fsg_mod_data.cdrom[0] = true;
 	fsg_config_from_params(&m_config, &fsg_mod_data, fsg_num_buffers);
 	fsg_opts = fsg_opts_from_func_inst(config->f_ms_inst);
 	ret = fsg_common_set_num_buffers(fsg_opts->common, fsg_num_buffers);
@@ -4044,6 +4045,7 @@ static int usb_diag_update_pid_and_serial_num(u32 pid, const char *snum)
 
 	pr_debug("%s: dload:%p pid:%x serial_num:%s\n",
 				__func__, diag_dload, pid, snum);
+	return 0;
 
 	/* update pid */
 	local_diag_dload.magic_struct.pid = PID_MAGIC_ID;

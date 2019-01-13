@@ -11,5 +11,6 @@
 	soc { };
 	chosen { };
 	aliases { };
+	rkm_log { };
 	memory { device_type = "memory"; reg = <0 0 0 0>; };
 };

@@ -19,6 +19,7 @@
  */
 
 #include "sdcardfs.h"
+#include <linux/syscalls.h>
 
 /* copy derived state from parent inode */
 static void inherit_derived_state(struct inode *parent, struct inode *child)
@@ -262,4 +263,48 @@ int setup_obb_dentry(struct dentry *dentry, struct path *lower_path)
 	return err;
 }
 
+/* Secure Zone panzh2 Hack SecureZoneEx for Secure zone */
+int setup_secure_openuserdata_dentry(struct dentry *dentry, struct path *lower_path)
+{
+   int err = 0;
+   struct sdcardfs_sb_info *sbi = SDCARDFS_SB(dentry->d_sb);
+   struct path oripath;
+
+   /* A local SecureZoneEx dentry must have its own orig_path to support rmdir 
+         * and mkdir of itself
+         * is avaiable on this stage. */
+   sdcardfs_set_orig_path(dentry, lower_path);
+   err = kern_path(sbi->ownersdcard_s,
+                        LOOKUP_FOLLOW | LOOKUP_DIRECTORY, &oripath);
+        if(!err) {
+                /* the /data/media/0 base has been found */
+                printk(KERN_INFO "sdcardfs: "
+                                "%s is found\n", sbi->ownersdcard_s);
+                pathcpy(lower_path, &oripath);
+        } else {
+                /* if the /data/media/0 is not available, we can optionally
+                 * setup the lower_path with its orig_path. 
+                 * but, the current implementation just returns an error
+                 * because the sdcard daemon also regards this case as 
+                 * a lookup fail. */
+                printk(KERN_INFO "sdcardfs: "
+                                "the %s is not available\n", sbi->ownersdcard_s);
+        }
+        return err;
+}
+
+int is_secure_openuserdata_path(struct dentry *dentry)
+{
+    int ret = 0;
+    struct dentry *parent = dget_parent(dentry);
+
+    struct sdcardfs_inode_info *parent_info = SDCARDFS_I(parent->d_inode);
+    if (parent_info->userid != 0 
+         && parent_info->perm == PERM_ROOT && !strcasecmp(dentry->d_name.name, "SecureZoneEx")) {
+        printk(KERN_INFO "panzh2 check securezon uid");
+        ret = 1;
+    }
+
+    return ret;
+}
 

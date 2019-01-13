@@ -63,6 +63,7 @@ struct rtc_class_ops {
 	int (*set_mmss)(struct device *, unsigned long secs);
 	int (*read_callback)(struct device *, int data);
 	int (*alarm_irq_enable)(struct device *, unsigned int enabled);
+	int (*set_alarm_deviceup) (struct device *, struct rtc_wkalrm *);
 };
 
 #define RTC_DEVICE_NAME_SIZE 20

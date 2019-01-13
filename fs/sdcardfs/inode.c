@@ -300,6 +300,16 @@ static int sdcardfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
 			make_nomedia_in_obb = 1;
 	}
 
+       /* Secure Zone panzh2 hack the OpenUserData for Secure zone */
+       if(is_secure_openuserdata_path(dentry)) {
+             err = setup_secure_openuserdata_dentry(dentry, &lower_path);
+
+             if(err) {
+                  sdcardfs_put_reset_lower_path(dentry);
+                  path_get(&lower_path);
+             }
+        }
+
 	err = sdcardfs_interpose(dentry, dir->i_sb, &lower_path, pi->userid);
 	if (err)
 		goto out;

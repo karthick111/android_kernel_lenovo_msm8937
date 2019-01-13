@@ -40,6 +40,10 @@
 #include "internal.h"
 #include "mount.h"
 
+#include "low_storage.h"
+#include <linux/statfs.h>
+#include <linux/dcache.h>
+#include <linux/genhd.h>
 /* [Feb-1997 T. Schoebel-Theuer]
  * Fundamental changes in the pathname lookup mechanisms (namei)
  * were necessary because of omirr.  The reason is that omirr needs
@@ -2541,12 +2545,37 @@ EXPORT_SYMBOL(unlock_rename);
 int vfs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 		bool want_excl)
 {
+#ifdef LIMIT_SDCARD_SIZE
+	struct super_block *mnt_sb;
+	struct kstatfs stat;
+
+#endif
 	int error = may_create(dir, dentry);
 	if (error)
 		return error;
 
 	if (!dir->i_op->create)
 		return -EACCES;	/* shouldn't it be ENOSYS? */
+#ifdef LIMIT_SDCARD_SIZE
+	mnt_sb = dentry->d_sb;
+	if((mnt_sb)&&(!strcmp(mnt_sb->s_type->name, "sdcardfs")))
+	{
+	    if(store <data_free_size_th){
+            vfs_ustat(mnt_sb->s_dev,&stat);
+            /*
+            since minus 50M  in statfs will cause  the CTS test faile ,
+            so we  change as following instead of old  if(stat.f_bavail== 0) //that mean less than reserved size
+            */
+            if(stat.f_bavail<data_free_page)
+            {
+                printk(KERN_ERR "[low storage] create %s over flow,%llx\n",dentry->d_name.name,store);
+                printk(KERN_ERR "[low storage] stat->free=%llx,available=%llx\n",stat.f_bfree,stat.f_bavail);
+                return -ENOSPC;
+            }
+        }
+    }
+
+#endif
 	mode &= S_IALLUGO;
 	mode |= S_IFREG;
 	error = security_inode_create(dir, dentry, mode);
@@ -3523,13 +3552,36 @@ int vfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	int error = may_create(dir, dentry);
 	unsigned max_links = dir->i_sb->s_max_links;
-
+#ifdef LIMIT_SDCARD_SIZE
+	struct super_block *mnt_sb;
+	struct kstatfs stat;
+#endif
 	if (error)
 		return error;
 
 	if (!dir->i_op->mkdir)
 		return -EPERM;
 
+#ifdef LIMIT_SDCARD_SIZE
+	if( dentry&&dentry->d_sb)
+	{
+		mnt_sb = dentry->d_sb;
+		if((mnt_sb)&&(mnt_sb->s_dev))
+		{
+			if(!strcmp(mnt_sb->s_type->name, "sdcardfs"))
+			{
+				//printk(KERN_ERR "[Low_storage]vfs_mkdir fuse %s, store=%lld, %lld\n",dentry->d_name.name,store,data_free_size_th);
+				if(store < data_free_size_th){
+					vfs_ustat(mnt_sb->s_dev,&stat);
+					if (stat.f_bavail<data_free_page) {
+						printk(KERN_ERR "[low storage]  mkdir %s by %s fail, because data have no space\n",dentry->d_name.name,current->comm);	
+						return -ENOSPC;
+					}
+				}
+			}
+		}
+	}
+#endif
 	mode &= (S_IRWXUGO|S_ISVTX);
 	error = security_inode_mkdir(dir, dentry, mode);
 	if (error)

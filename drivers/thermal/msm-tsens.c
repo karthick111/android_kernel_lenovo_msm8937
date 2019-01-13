@@ -787,6 +787,8 @@ struct tsens_thrshld_state {
 	int				crit_temp;
 };
 
+extern unsigned long long sched_clock(void);
+
 struct tsens_tm_device_sensor {
 	struct thermal_zone_device	*tz_dev;
 	struct tsens_tm_device		*tm;

@@ -1,0 +1,66 @@
+/* Copyright (c) 2016, Lenovo mobile Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+#include "msm8937-lenovo-common.dtsi"
+#include "karatep-audio.dtsi"
+#include "msm8937-camera-sensor-karatep.dtsi"
+#include "dsi-panel-hx8399c-tm-1080p-video.dtsi"
+#include "dsi-panel-ili7807d-djn-1080p-video.dtsi"
+#include "dsi-panel-nt35596-tm-1080p-video.dtsi"
+
+ / {
+        model = "karate plus";
+	compatible ="qcom,msm8937-pmi8950-karatep", "qcom,msm8937-pmi8950-qrd-sku1",
+		   "qcom,msm8937-qrd", "qcom,msm8937", "qcom,qrd";
+};
+
+&i2c_3 {
+	focaltech@38 {
+		focaltech,name = "ft5436";
+		focaltech,button-y-coord = <2040>;
+		focaltech,button-x-coords = <200 500 800>;
+		focaltech,fw-name = "Lenovo_karatePlus_Ofilm_VendorID0x01_FT5436_Ver0x10_20160427_app.i";
+	};
+};
+/ {
+	qrd_batterydata: qcom,battery-data {
+		qcom,batt-id-range-pct = <5>;
+		#include "batterydata-itech-3000mah.dtsi"
+	};
+};
+
+&dsi_ili7807d_djn_1080p_video {
+	qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
+};
+
+&dsi_nt35596_tm_1080p_video {
+	qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
+};
+
+&dsi_hx8399c_tm_1080p_video {
+	qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
+	//qcom,esd-check-enabled;
+};
+
+&spmi_bus {
+	qcom,pmi8950@3 {
+		labibb: qpnp-labibb-regulator {
+			ibb_regulator: qcom,ibb@dc00 {
+				qcom,qpnp-ibb-init-lcd-voltage = <5000000>;
+			};
+
+			lab_regulator: qcom,lab@de00 {
+				qcom,qpnp-ibb-init-lcd-voltage = <5000000>;
+			};
+		};
+	};
+};

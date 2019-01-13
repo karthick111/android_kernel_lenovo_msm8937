@@ -74,7 +74,10 @@ config ARM
 	select OLD_SIGACTION
 	select OLD_SIGSUSPEND3
 	select PERF_USE_VMALLOC
+    select POWER_RESET
+    select POWER_SUPPLY
 	select RTC_LIB
+    select SPARSE_IRQ
 	select SYS_SUPPORTS_APM_EMULATION
 	# Above selects are sorted alphabetically; please add new ones
 	# according to that.  Thanks.
@@ -1867,6 +1870,17 @@ config ARM_FLUSH_CONSOLE_ON_RESTART
 	  console drivers. This option forces the console lock to be
 	  released if it failed to be acquired, which will cause all the
 	  pending messages to be flushed.
+
+config LENOVO_DEBUG_RKM
+	bool "Configure Replay Kernel Message feature for debug"
+	help
+	  RKM can replay last lk/sbl log info in kernel and replay lastkmsg in
+	  ramdump mode.
+
+config LENOVO_ID
+	bool "Configure Lenovo board ID "
+	help
+          Lenovo ID is used to indicate different hardware board.
 
 endmenu
 

@@ -516,6 +516,34 @@ ext4_read_block_bitmap(struct super_block *sb, ext4_group_t block_group)
 	return bh;
 }
 
+static char* system_app_package[] =
+{
+    "system_process",
+    "ndroid.systemui",
+    "d.process.acore",
+    "m.android.phone",
+    "ndroid.settings",
+    "d.process.media",
+    "system_server",
+    "lenovo.launcher"
+};
+
+static int package_count = ARRAY_SIZE(system_app_package);
+
+static inline int is_system_app(void)
+{
+	char *current_comm = current->group_leader->comm;
+	int i;
+
+	for(i = 0; i < package_count; i++) {
+		//in package list can write
+		if(memcmp(current_comm, system_app_package[i], strlen(system_app_package[i])) == 0) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
 /**
  * ext4_has_free_clusters()
  * @sbi:	in-core super block structure.
@@ -554,8 +582,11 @@ static int ext4_has_free_clusters(struct ext4_sb_info *sbi,
 	if (free_clusters >= (rsv + nclusters + dirty_clusters))
 		return 1;
 
+
+	//printk("[low storage] Alloc:%d,%d\n", sbi->s_resuid.val, current_fsuid().val);
 	/* Hm, nope.  Are (enough) root reserved clusters available? */
-	if (uid_eq(sbi->s_resuid, current_fsuid()) ||
+	//if (uid_eq(sbi->s_resuid, current_fsuid()) ||
+	if (uid_gte(sbi->s_resuid, current_fsuid()) ||is_system_app() ||
 	    (!gid_eq(sbi->s_resgid, GLOBAL_ROOT_GID) && in_group_p(sbi->s_resgid)) ||
 	    capable(CAP_SYS_RESOURCE) ||
 	    (flags & EXT4_MB_USE_ROOT_BLOCKS)) {

@@ -14,25 +14,52 @@
 #include "msm-pmi8950.dtsi"
 #include "msm8937-qrd.dtsi"
 #include "msm8937-mdss-panels.dtsi"
+#include "dsi-panel-otm1901a-tm-1080p-video.dtsi"
 
 &spmi_bus {
 	qcom,pmi8950@2 {
-		qcom,leds@a100 {
-			status = "okay";
-			qcom,led_mpp_2 {
-				label = "mpp";
-				linux,name = "green";
-				linux,default-trigger = "none";
-				qcom,default-state = "off";
-				qcom,max-current = <40>;
-				qcom,current-setting = <5>;
-				qcom,id = <6>;
-				qcom,mode = "manual";
-				qcom,source-sel = <1>;
-				qcom,mode-ctrl = <0x60>;
-			};
-		};
-	};
+                qcom,leds@a100 {
+                        compatible = "qcom,leds-qpnp";
+                        reg = <0xa100 0x100>;
+                        status = "okay";
+                        qcom,led_mpp_2 {
+                                label = "mpp";
+                                linux,name = "green";
+                                linux,default-trigger = "none";
+                                qcom,default-state = "off";
+                                qcom,max-current = <5>;
+                                qcom,current-setting = <5>;
+                                qcom,id = <6>;
+                                qcom,mode = "pwm";
+                                qcom,pwm-channel = <0>;
+                                pwms = <&pmi8950_pwm 0 0>;
+                                pwm-names="green";
+                                qcom,source-sel = <8>;
+                                qcom,pwm-us=<1000>;
+                                qcom,mode-ctrl = <0x60>;
+                        };
+                };
+        };
+
+        qcom,pmi8950@3 {
+                pmi8950_pwm: pwm@b000{
+                        status = "okay";
+                        compatible = "qcom,qpnp-pwm";
+                        reg = <0xb000 0x100>;
+                        reg-names = "qpnp-lpg-channel-base";
+                        qcom,channel-id = <0>;
+                        qcom,supported-sizes = <6>,<9>;
+                        qcom,period = <2000000>;
+                        qcom,mode-select=<0>;
+                        qcom,dtest-output = <1>;
+                        qcom,dtest-line = <1>;
+                        #pwm-cells = <2>;
+                        qcom,pwm{
+                                qcom,duty = <1000000>;
+                                label = "pwm";
+                        };
+                };
+        };
 };
 
 &soc {
@@ -45,33 +72,36 @@
 		qcom,switch-source = <&pmi8950_switch>;
 	};
 
-	i2c@78b7000 {
-		status = "ok";
-		synaptics@4b {
-			compatible = "synaptics,dsx";
-			reg = <0x4b>;
-			interrupt-parent = <&tlmm>;
-			interrupts = <65 0x2008>;
-			vdd-supply = <&pm8937_l5>;
-			avdd-supply = <&pm8937_l10>;
-			pinctrl-names = "pmx_ts_active","pmx_ts_suspend",
-				"pmx_ts_release";
-			pinctrl-0 = <&ts_int_active &ts_reset_active>;
-			pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
-			pinctrl-2 = <&ts_release>;
-			synaptics,display-coords = <0 0 1079 1919>;
-			synaptics,panel-coords = <0 0 1079 1919>;
-			synaptics,reset-gpio = <&tlmm 64 0x00>;
-			synaptics,irq-gpio = <&tlmm 65 0x2008>;
-			synaptics,disable-gpios;
-			synaptics,button-map = <158 139 172>;
-			synaptics,resume-in-workqueue;
-			/* Underlying clocks used by secure touch */
-			clock-names = "iface_clk", "core_clk";
-			clocks = <&clock_gcc clk_gcc_blsp1_ahb_clk>,
-				<&clock_gcc clk_gcc_blsp1_qup3_i2c_apps_clk>;
+	led_flash1: qcom,camera-flash {
+		cell-index = <0>;
+		compatible = "qcom,camera-flash";
+		qcom,flash-type = <1>;
+		qcom,flash-source = <&pmi8950_flash0 &pmi8950_flash1>;
+		qcom,torch-source = <&pmi8950_torch0 &pmi8950_torch1>;
+		qcom,switch-source = <&pmi8950_switch>;
+	};
+};
+
+&tlmm {
+	pmx_mdss: pmx_mdss {
+		mdss_dsi_active: mdss_dsi_active {
+			mux {
+				pins = "gpio60";
+			};
+			config {
+				pins = "gpio60";
+			};
+		};
+		mdss_dsi_suspend: mdss_dsi_suspend {
+			mux {
+				pins = "gpio60";
+			};
+			config {
+				pins = "gpio60";
+			};
 		};
 	};
+
 };
 
 &mdss_mdp {
@@ -86,7 +116,7 @@
 	lab-supply = <&lab_regulator>;
 	ibb-supply = <&ibb_regulator>;
 
-	qcom,dsi-pref-prim-pan = <&dsi_r69006_1080p_cmd>;
+	qcom,dsi-pref-prim-pan = <&dsi_otm1901a_tm_1080p_video>;
 	pinctrl-names = "mdss_default", "mdss_sleep";
 	pinctrl-0 = <&mdss_dsi_active &mdss_te_active>;
 	pinctrl-1 = <&mdss_dsi_suspend &mdss_te_suspend>;
@@ -134,9 +164,14 @@
 	qcom,esd-check-enabled;
 };
 
-&dsi_r69006_1080p_video {
+&dsi_otm1901a_tm_1080p_video {
 	qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
-	qcom,esd-check-enabled;
+	//qcom,esd-check-enabled;
+};
+
+&dsi_hx8399c_yas_1080p_video {
+	qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
+	//qcom,esd-check-enabled;
 };
 
 &spmi_bus {
@@ -145,14 +180,17 @@
 			ibb_regulator: qcom,ibb@dc00 {
 				/delete-property/
 					qcom,qpnp-ibb-use-default-voltage;
-				qcom,qpnp-ibb-init-lcd-voltage = <5700000>;
+				qcom,qpnp-ibb-init-lcd-voltage = <5500000>;
 			};
 
 			lab_regulator: qcom,lab@de00 {
 				/delete-property/
 					qcom,qpnp-ibb-use-default-voltage;
-				qcom,qpnp-ibb-init-lcd-voltage = <5700000>;
+				qcom,qpnp-ibb-init-lcd-voltage = <5500000>;
 			};
+		};
+		wled: qcom,leds@d800 {
+			qcom,en-cabc;
 		};
 	};
 };
@@ -167,9 +205,4 @@
 	config {
 		drive-strength = <12>;
 	};
-};
-
-&flash_led {
-	/delete-node/ qcom,flash_1;
-	/delete-node/ qcom,torch_1;
 };

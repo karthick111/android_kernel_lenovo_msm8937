@@ -818,6 +818,17 @@ config ARM64_PAN
 
 	 The feature is detected at runtime, and will remain as a 'nop'
 	 instruction if the cpu does not implement the feature.
+config LENOVO_DEBUG_RKM
+	bool "Configure Replay Kernel Message feature for debug"
+	default y
+	help
+	  RKM can replay last lk/sbl log info in kernel and replay lastkmsg in
+	  ramdump mode.
+config LENOVO_ID
+	bool "Configure Lenovo board ID "
+	help
+          Lenovo ID is used to indicate different hardware board.
+
 
 menuconfig ARMV8_DEPRECATED
 	bool "Emulate deprecated/obsolete ARMv8 instructions"

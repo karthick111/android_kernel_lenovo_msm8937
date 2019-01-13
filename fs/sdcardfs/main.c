@@ -277,6 +277,8 @@ static int sdcardfs_read_super(struct super_block *sb, const char *dev_name,
 		setup_derived_state(sb->s_root->d_inode, PERM_ROOT, sb_info->options.fs_low_uid, AID_ROOT, false);
 		snprintf(sb_info->obbpath_s, PATH_MAX, "%s/Android/obb", dev_name);
 	}
+                /* Secure Zone panzh2 record the owner sd card path */
+                snprintf(sb_info->ownersdcard_s, PATH_MAX, "%s/0", dev_name);
 	fix_derived_permission(sb->s_root->d_inode);
 	sb_info->sb = sb;
 	list_add(&sb_info->list, &sdcardfs_super_list);
