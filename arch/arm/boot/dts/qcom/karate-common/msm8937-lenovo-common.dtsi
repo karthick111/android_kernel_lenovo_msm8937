@@ -22,6 +22,12 @@
 		other_ext_mem: other_ext_region@0 {
 			reg = <0x0 0x84A00000 0x0 0x1E00000>;
 		};
+
+		pstore_reserve_mem: pstore_reserve_mem_region@0 {
+			compatible = "removed-dma-pool";
+			no-map;
+			reg = <0x0 0x9ff00000 0x0 0x00300000>;
+		};
 	};
 
 	aliases {
