@@ -76,6 +76,9 @@ obj-$(CONFIG_SENSORS_LTR553)	+= ltr553.o
 obj-$(CONFIG_SENSORS_BMA2X2)	+= bstclass.o
 
 obj-$(CONFIG_SENSORS_BMA2X2)	+= bma2x2.o
+obj-$(CONFIG_SENSORS_BMP280)	+= bmp280_i2c.o bmp280.o bmp280_core.o
+obj-$(CONFIG_SENSORS_SPL06)	+= spl06.o
+
 ifeq ($(CONFIG_SENSORS_BMA2X2_ENABLE_INT1),y)
 	EXTRA_CFLAGS += -DBMA2X2_ENABLE_INT1
 endif

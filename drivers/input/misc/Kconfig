@@ -239,6 +239,17 @@ config SENSORS_MPU6050
 	  To compile this driver as a module, choose M here: the
 	  module will be called mpu6050.
 
+config SENSORS_SPL06
+	tristate "SENSORS_SPL06 pressure and temprature combo"
+	depends on I2C
+	help
+	  Say Y here if you want to support spl06
+	  connected via an I2C bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called spl06.
+
+
 config SENSORS_AKM8963
 	tristate "AKM8963 3-axis electronic compass sensor driver"
 	depends on I2C
@@ -788,6 +799,13 @@ config SENSORS_LTR553
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ltr553.
+
+config SENSORS_BMP280
+	tristate "BMP280 Pressure sensor support"
+	depends on I2C
+	help
+	  If you say yes here, you get support for Bosch Sensortec's
+	  Pressure Sensor BMP280
 
 config SENSORS_BMA2X2
 	tristate "BMA2x2 acceleration sensor support"
