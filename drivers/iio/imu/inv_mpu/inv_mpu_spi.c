@@ -146,10 +146,13 @@ static int inv_spi_mem_read(struct inv_mpu_state *st, u8 mpu_addr, u16 mem_addr,
  */
 static int inv_mpu_probe(struct spi_device *spi)
 {
-	const struct spi_device_id *id = spi_get_device_id(spi);
 	struct inv_mpu_state *st;
 	struct iio_dev *indio_dev;
 	int result;
+	const struct spi_device_id *id = spi_get_device_id(spi);
+
+	if (id == NULL)
+		return -EIO;
 
 #ifdef KERNEL_VERSION_4_X
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
@@ -292,10 +295,10 @@ out_remove_ring:
 out_unreg_ring:
 	inv_mpu_unconfigure_ring(indio_dev);
 out_free:
+	dev_err(st->dev, "%s failed %d\n", __func__, result);
 	iio_device_free(indio_dev);
 out_no_free:
 #endif
-	dev_err(st->dev, "%s failed %d\n", __func__, result);
 
 	return -EIO;
 }
