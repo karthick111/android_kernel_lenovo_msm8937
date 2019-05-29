@@ -753,6 +753,9 @@ struct mdss_panel_info {
 
 	/* HDR properties of display panel*/
 	struct mdss_panel_hdr_properties hdr_properties;
+
+	/* DSI to DPI bridge usage */
+	bool use_dsi2dpi_bridge;
 };
 
 struct mdss_panel_timing {

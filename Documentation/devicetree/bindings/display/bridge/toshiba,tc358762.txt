@@ -1,0 +1,28 @@
+Toshiba TC358762 Display Interface Bridge
+
+Required properties:
+ - compatible: "toshiba,tc358762"
+ - reg: i2c address of the bridge
+ - clock-names: names of clocks
+ - clocks: phandles to input clocks
+
+Optional properties:
+ - reset-gpios: OF device-tree gpio specification for RSTX pin
+                (active low system reset)
+ - toshiba,i2c-pull-up: to specify pull up is required
+
+Example:
+
+		toshiba@b{
+                        compatible = "toshiba,tc358762";
+                        vdds_l6-supply = <&pm8909_l6>;
+                        vdda_l2-supply = <&pm8909_l2>;
+                        vdd_l17-supply = <&pm8909_l17>;
+                        reg = <0xb>;
+                        qcom,clk-src = "BBCLK2";
+                        clocks = <&clock_rpm clk_bb_clk2>;
+                        clock-names = "bb_clk2";
+                        toshiba,reset-gpio = <&msm_gpio 25 0x00>;
+                        toshiba,i2c-pull-up;
+                        status = "okay";
+                };

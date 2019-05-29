@@ -1,0 +1,41 @@
+Rocktech UltraChip 128 x 128 passive LCD controller
+
+Required properties:
+  - compatible: "rocktech,uc1617sfb-spi"
+  - reg: address of the panel on SPI bus
+  - vdd-supply: core voltage supply
+  - rocktech,reset-gpios: GPIO for the reset pin
+
+The panel must obey rules for SPI slave device specified in document [1].
+
+[1] Documentation/devicetree/bindings/spi/spi-bus.txt
+
+Example:
+	&spi_0 {
+		status = "okay";
+		spi-max-frequency = <11000000>;
+		pinctrl-names = "spi_default", "spi_sleep";
+		pinctrl-0 = <&spi0_default  &spi0_cs0_active>;
+		pinctrl-1 = <&spi0_sleep &spi0_cs0_sleep>;
+		spi-slave@0 {
+		        compatible = "rocktech,uc1617sfb-spi";
+		        reg = <0>;
+		        status = "okay";
+		        spi-max-frequency = <11000000>;
+		        vdd-supply = <&pm8909_l5>;
+		        avdd-supply = <&pm8909_l17>;
+		        pinctrl-names = "spi_default", "spi_sleep";
+		        pinctrl-0 = <&spi0_default  &spi0_cs0_active>;
+		        pinctrl-1 = <&spi0_sleep &spi0_cs0_sleep>;
+		        rocktech,reset-gpios = <&msm_gpio 28 0x01>;
+		        rocktech,datacmd-gpios = <&msm_gpio 9 0x01>;
+		        rocktech,bklt-ctrl = "third-party";
+		        rocktech,default-bklt = <15>;
+		        rocktech,width = <96>;
+		        rocktech,height = <96>;
+		};
+	};
+
+
+
+

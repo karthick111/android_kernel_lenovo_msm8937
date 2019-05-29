@@ -1488,6 +1488,21 @@ int pwm_change_mode(struct pwm_device *pwm, enum pm_pwm_mode mode)
 EXPORT_SYMBOL_GPL(pwm_change_mode);
 
 /**
+ * pwm_spmi_register_writel - change pmic register
+ *
+ * @pwm: the PWM devices
+ */
+int pwm_spmi_register_writel(struct pwm_device *pwm,
+			     u16 addr, u8 *buf, int len)
+{
+	struct qpnp_pwm_chip	*chip = qpnp_pwm_from_pwm_dev(pwm);
+
+	return spmi_ext_register_writel(chip->spmi_dev->ctrl, 0,
+			addr, buf, 1);
+}
+EXPORT_SYMBOL_GPL(pwm_spmi_register_writel);
+
+/**
  * pwm_config_period - change PWM period
  *
  * @pwm: the PWM device
