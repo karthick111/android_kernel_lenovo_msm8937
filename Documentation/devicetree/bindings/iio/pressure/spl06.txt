@@ -1,0 +1,17 @@
+SPL06 Digital Pressure Sensor
+
+Required properties:
+- compatible: "qcom,spl06"
+- reg: the I2C address or SPI chip select the device will respond to
+
+Optional properties:
+- vdd-supply: an optional regulator that needs to be on to provide VDD
+  power to the sensor.
+
+Example:
+
+	spl06@76 {
+		compatible = "qcom,spl06";
+		reg = <0x76>;
+		vdd-supply = <&pm8909_l6>;
+        };
