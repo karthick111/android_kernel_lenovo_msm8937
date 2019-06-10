@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2015, 2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -24,7 +24,7 @@
 #define PC_TEMP_ROWS		31
 #define PC_TEMP_COLS		8
 
-#define ACC_IBAT_ROWS		4
+#define ACC_IBAT_ROWS		7
 #define ACC_TEMP_COLS		3
 
 #define MAX_SINGLE_LUT_COLS	20
