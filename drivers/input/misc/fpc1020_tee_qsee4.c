@@ -315,6 +315,29 @@ exit:
 	return rc;
 }
 
+static int fpc1020_suspend(struct device *dev)
+{
+	struct fpc1020_data *fpc1020 = dev_get_drvdata(dev);
+
+	disable_irq(gpio_to_irq(fpc1020->irq_gpio));
+
+	return 0;
+}
+
+static int fpc1020_resume(struct device *dev)
+{
+	struct fpc1020_data *fpc1020 = dev_get_drvdata(dev);
+
+	enable_irq(gpio_to_irq(fpc1020->irq_gpio));
+
+	return 0;
+}
+
+static const struct dev_pm_ops fpc1020_pm_ops = {
+	.suspend = fpc1020_suspend,
+	.resume = fpc1020_resume,
+};
+
 static struct of_device_id fpc1020_of_match[] = {
 	{ .compatible = "fpc,fpc1020", },
 	{}
@@ -326,6 +349,7 @@ static struct platform_driver fpc1020_driver = {
 		.name		= "fpc1020",
 		.owner		= THIS_MODULE,
 		.of_match_table = fpc1020_of_match,
+		.pm = &fpc1020_pm_ops,
 	},
 	.probe = fpc1020_probe,
 };
