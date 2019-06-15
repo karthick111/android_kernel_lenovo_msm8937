@@ -1,7 +1,7 @@
 /* include/linux/msm_audio.h
  *
  * Copyright (C) 2008 Google, Inc.
- * Copyright (c) 2012, 2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012, 2014, 2019 The Linux Foundation. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -458,6 +458,15 @@ struct msm_hwacc_effects_config {
 	__u32 meta_mode_enabled;
 	__u32 overwrite_topology;
 	__s32 topology;
+};
+
+#define ADSP_STREAM_PP_EVENT				0
+#define ADSP_STREAM_EVENT_MAX				1
+
+struct msm_adsp_event_data {
+	__u32 event_type;
+	__u32 payload_len;
+	__u8 payload[0];
 };
 
 #endif
