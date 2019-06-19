@@ -368,6 +368,7 @@ struct wcd_mbhc_cb {
 struct wcd_mbhc {
 	/* Delayed work to report long button press */
 	struct delayed_work mbhc_btn_dwork;
+	struct delayed_work mbhc_ptt_btn_dwork;
 	int buttons_pressed;
 	struct wcd_mbhc_config *mbhc_cfg;
 	const struct wcd_mbhc_cb *mbhc_cb;
@@ -428,6 +429,9 @@ struct wcd_mbhc {
 	struct mutex hphr_pa_lock;
 
 	unsigned long intr_status;
+	/*PTT Btn Changes */
+	int ptt_btn, audio_sw, headset_sel;
+	bool ptt_supported;
 };
 #define WCD_MBHC_CAL_SIZE(buttons, rload) ( \
 	sizeof(struct wcd_mbhc_general_cfg) + \
