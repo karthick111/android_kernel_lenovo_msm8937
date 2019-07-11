@@ -23,6 +23,7 @@ apm	Applied Micro Circuits Corporation (APM)
 arm	ARM Ltd.
 armadeus	ARMadeus Systems SARL
 atmel	Atmel Corporation
+audio	Audio SmartPA
 auo	AU Optronics Corporation
 avago	Avago Technologies
 awinic	AWINIC Technology Co.Ltd
