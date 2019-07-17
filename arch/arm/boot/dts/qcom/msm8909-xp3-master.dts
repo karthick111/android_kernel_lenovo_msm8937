@@ -18,7 +18,7 @@
 / {
 	model = "Qualcomm Technologies, Inc. XP3 MSM8909-PM8909 MTP";
 	compatible = "qcom,msm8909-mtp", "qcom,msm8909", "qcom,mtp";
-	qcom,board-id = <8 6>, <8 0x106>;
+	qcom,board-id = <8 6>, <8 0x16>;
 };
 
 &spmi_bus {
