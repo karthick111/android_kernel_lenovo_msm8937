@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2017, 2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -3089,7 +3089,7 @@ static struct snd_soc_card *msm8952_populate_sndcard_dailinks(
 		len1 += ARRAY_SIZE(msm8952_split_a2dp_dai_link);
 	}
 	if (of_property_read_bool(dev->of_node,
-				"qcom,smartpa_en")) {
+				"qcom,smartpa-en")) {
 		dev_dbg(dev, "%s(): Smart pa support present\n",
 				__func__);
 		memcpy(dailink + len1, msm8952_smartpa_dai_link,
