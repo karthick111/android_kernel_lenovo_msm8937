@@ -97,12 +97,15 @@ static int msm_dtmf_rx_generate_put(struct snd_kcontrol *kcontrol,
 {
 	uint16_t low_freq = ucontrol->value.integer.value[0];
 	uint16_t high_freq = ucontrol->value.integer.value[1];
-	int16_t duration = ucontrol->value.integer.value[2];
+	int64_t duration = ucontrol->value.integer.value[2];
 	uint16_t gain = ucontrol->value.integer.value[3];
 
-	pr_debug("%s: low_freq=%d high_freq=%d duration=%d gain=%d\n",
-		 __func__, low_freq, high_freq, (int)duration, gain);
-	afe_dtmf_generate_rx((int64_t) duration, high_freq, low_freq, gain);
+	pr_debug("%s: low_freq=%d high_freq=%d duration=%lld gain=%d\n",
+		 __func__, low_freq, high_freq, duration, gain);
+
+	if (duration == 65535)
+		duration = -1;
+	afe_dtmf_generate_rx(duration, high_freq, low_freq, gain);
 	return 0;
 }
 
