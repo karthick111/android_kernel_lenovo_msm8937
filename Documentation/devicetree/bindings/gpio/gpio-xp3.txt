@@ -1,0 +1,25 @@
+XP3_GPIO Support for 8909 chip
+
+Required properties:
+- compatible:	"xp3-gpios" for MSM controllers
+
+Optional property:
+- pinctrl-names:The list of names to assign states. List entry 0 defines the
+		name for integer state ID 0, list entry 1 for state ID 1, and
+		so on.
+- gpios:	Contains 3 fields of the form <&gpio_controller pin_num flags>
+- pinctrl-n:	List of phandles, each pointing at a pin configuration
+		node within a pin controller.
+
+
+Example:
+
+        xp3-gpios {
+		compatible = "xp3-gpios";
+		pinctrl-names = "active","suspend";
+		hw-id1_gpio = <&msm_gpio 23 0x00>;
+		hw-id2_gpio = <&msm_gpio 27 0x00>;
+		pinctrl-0 = <&hw_ver_active>;
+		pinctrl-1 = <&hw_ver_suspend>;
+        };
+

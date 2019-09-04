@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2017, 2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -134,6 +134,92 @@ static const struct qpnp_vadc_map_pt adcmap_btm_threshold[] = {
 	{770,	213},
 	{780,	208},
 	{790,	203}
+};
+
+static const struct qpnp_vadc_map_pt adcmap_xp3_btm_threshold[] = {
+	{-300,	1604},
+	{-200,	1502},
+	{-100,	1376},
+	{0,	1234},
+	{10,	1220},
+	{20,	1205},
+	{30,	1191},
+	{40,	1176},
+	{50,	1161},
+	{60,	1147},
+	{70,	1132},
+	{80,	1118},
+	{90,	1104},
+	{100,	1089},
+	{110,	1075},
+	{120,	1061},
+	{130,	1047},
+	{140,	1033},
+	{150,	1019},
+	{160,	1006},
+	{170,	992},
+	{180,	979},
+	{190,	966},
+	{200,	953},
+	{210,	940},
+	{220,	927},
+	{230,	915},
+	{240,	903},
+	{250,	891},
+	{260,	879},
+	{270,	867},
+	{280,	856},
+	{290,	844},
+	{300,	833},
+	{310,	822},
+	{320,	812},
+	{330,	801},
+	{340,	791},
+	{350,	781},
+	{360,	771},
+	{370,	761},
+	{380,	752},
+	{390,	743},
+	{400,	734},
+	{410,	725},
+	{420,	716},
+	{430,	708},
+	{440,	700},
+	{450,	692},
+	{460,	684},
+	{470,	676},
+	{480,	669},
+	{490,	662},
+	{500,	655},
+	{510,	648},
+	{520,	641},
+	{530,	634},
+	{540,	628},
+	{550,	622},
+	{560,	616},
+	{570,	610},
+	{580,	604},
+	{590,	598},
+	{600,	593},
+	{610,	588},
+	{620,	583},
+	{630,	578},
+	{640,	573},
+	{650,	568},
+	{660,	564},
+	{670,	559},
+	{680,	555},
+	{690,	551},
+	{700,	547},
+	{710,	543},
+	{720,	539},
+	{730,	535},
+	{740,	532},
+	{750,	528},
+	{760,	525},
+	{770,	521},
+	{780,	518},
+	{790,	515}
 };
 
 static const struct qpnp_vadc_map_pt adcmap_qrd_btm_threshold[] = {
@@ -1041,6 +1127,27 @@ int32_t qpnp_adc_scale_qrd_batt_therm(struct qpnp_vadc_chip *chip,
 			&adc_chan_result->physical);
 }
 EXPORT_SYMBOL(qpnp_adc_scale_qrd_batt_therm);
+
+int32_t qpnp_adc_scale_xp3_batt_therm(struct qpnp_vadc_chip *chip,
+		int32_t adc_code,
+		const struct qpnp_adc_properties *adc_properties,
+		const struct qpnp_vadc_chan_properties *chan_properties,
+		struct qpnp_vadc_result *adc_chan_result)
+{
+	int64_t bat_voltage = 0;
+
+	qpnp_adc_scale_with_calib_param(adc_code,
+			adc_properties, chan_properties, &bat_voltage);
+
+	adc_chan_result->measurement = bat_voltage;
+
+	return qpnp_adc_map_temp_voltage(
+			adcmap_xp3_btm_threshold,
+			ARRAY_SIZE(adcmap_qrd_btm_threshold),
+			bat_voltage,
+			&adc_chan_result->physical);
+}
+EXPORT_SYMBOL(qpnp_adc_scale_xp3_batt_therm);
 
 int32_t qpnp_adc_scale_qrd_skuaa_batt_therm(struct qpnp_vadc_chip *chip,
 		int32_t adc_code,

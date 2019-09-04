@@ -21,6 +21,8 @@
 #include <linux/printk.h>
 #include <linux/list.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/delay.h>
+#include <linux/spinlock.h>
 
 /* #define CONFIG_GPIO_FLASH_DEBUG */
 #undef CDBG
@@ -36,8 +38,21 @@
 #define GPIO_OUT_LOW          (0 << 1)
 #define GPIO_OUT_HIGH         (1 << 1)
 
+#define TORCH_ON       0x924B
+#define TORCH_OFF      0x9259
+#define TORCH_CURRENT_60       0x9649
+#define TORCH_CURRENT_120      0x964B
+#define TORCH_CURRENT_200      0x9659
+#define TORCH_CURRENT_280      0x965B
+#define FWD_WORD       0x92D9
+#define CAMERA_FLASH   0x9249
+#define FLASH_CURRENT_720      0xB2DB
+#define FLASH_CURRENT_980      0xB64B
+#define RESET                   0xB6DB
+
 #define SEQ_NUM 2
 
+static DEFINE_SPINLOCK(torch_lock);
 enum msm_flash_seq_type_t {
 	FLASH_EN,
 	FLASH_NOW,
@@ -69,34 +84,68 @@ static void led_gpio_brightness_set(struct led_classdev *led_cdev,
 				    enum led_brightness value)
 {
 	int rc = 0;
+	int i = 0;
+	int pattern;
 	struct led_gpio_flash_data *flash_led =
 	    container_of(led_cdev, struct led_gpio_flash_data, cdev);
 	int brightness = value;
-	int flash_en = 0, flash_now = 0;
 
-	if (brightness > LED_HALF) {
-		flash_en =
-			flash_led->ctrl_seq[FLASH_EN].flash_on_val;
-		flash_now =
-			flash_led->ctrl_seq[FLASH_NOW].flash_on_val;
-	} else if (brightness > LED_OFF) {
-		flash_en =
-			flash_led->ctrl_seq[FLASH_EN].torch_on_val;
-		flash_now =
-			flash_led->ctrl_seq[FLASH_NOW].torch_on_val;
+	spin_lock(&torch_lock);
+
+	if (value != 0) {
+		pattern = FWD_WORD;
+		for (i = 0; i < 16; i++) {
+			gpio_set_value(flash_led->flash_en,
+				((pattern>>(15-i)) & 0x01));
+			udelay(40);
+		}
+		gpio_set_value(flash_led->flash_en, 0);
+		mdelay(1);
+		if (value > LED_HALF)
+			pattern = FLASH_CURRENT_980;
+		else
+			pattern = TORCH_CURRENT_200;
+		for (i = 0; i < 16; i++) {
+			gpio_set_value(flash_led->flash_en,
+				((pattern>>(15-i)) & 0x01));
+			udelay(40);
+		}
+		if (value > LED_HALF)
+			pattern = CAMERA_FLASH;
+		else
+			pattern = TORCH_ON;
 	} else {
-		flash_en = 0;
-		flash_now = 0;
+		pattern = TORCH_OFF;
+		for (i = 0; i < 16; i++) {
+			gpio_set_value(flash_led->flash_en,
+				((pattern>>(15-i)) & 0x01));
+			udelay(40);
+		}
+		pattern = RESET;
 	}
-	CDBG("%s:flash_en=%d, flash_now=%d\n", __func__, flash_en, flash_now);
-
-	rc = gpio_direction_output(flash_led->flash_en, flash_en);
+	gpio_set_value(flash_led->flash_en, 0);
+	mdelay(1);
+	for (i = 0; i < 16; i++) {
+		gpio_set_value(flash_led->flash_en,
+			((pattern>>(15-i)) & 0x01));
+		udelay(40);
+	}
+	gpio_set_value(flash_led->flash_en, 0);
+	mdelay(1);
+	if (pattern == CAMERA_FLASH) {
+		gpio_set_value(flash_led->flash_en, 1);
+		udelay(40);
+	} else {
+		gpio_set_value(flash_led->flash_en, 0);
+	}
+	mdelay(1);
+	spin_unlock(&torch_lock);
 	if (rc) {
 		pr_err("%s: Failed to set gpio %d\n", __func__,
 		       flash_led->flash_en);
 		goto err;
 	}
-	rc = gpio_direction_output(flash_led->flash_now, flash_now);
+
 	if (rc) {
 		pr_err("%s: Failed to set gpio %d\n", __func__,
 		       flash_led->flash_now);
@@ -171,6 +220,7 @@ static int led_gpio_flash_probe(struct platform_device *pdev)
 			goto error;
 		}
 	}
+	rc = gpio_direction_output(flash_led->flash_en, 0);
 
 	flash_led->flash_now = of_get_named_gpio(node, "qcom,flash-now", 0);
 	if (flash_led->flash_now < 0) {

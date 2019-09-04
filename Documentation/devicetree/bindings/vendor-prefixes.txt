@@ -153,6 +153,7 @@ realtek Realtek Semiconductor Corp.
 renesas	Renesas Electronics Corporation
 ricoh	Ricoh Co. Ltd.
 rockchip	Fuzhou Rockchip Electronics Co., Ltd
+rocktech	Rocktech Displays Ltd
 samsung	Samsung Semiconductor
 sandisk	Sandisk Corporation
 sbs	Smart Battery System

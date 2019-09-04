@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1537,13 +1537,19 @@ static int ipa3_wwan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			break;
 		/*  Get driver name  */
 		case RMNET_IOCTL_GET_DRIVER_NAME:
-			memcpy(&extend_ioctl_data.u.if_name,
-				IPA_NETDEV()->name,
-							sizeof(IFNAMSIZ));
-			if (copy_to_user((u8 *)ifr->ifr_ifru.ifru_data,
+			if (IPA_NETDEV() != NULL) {
+				memcpy(&extend_ioctl_data.u.if_name,
+					IPA_NETDEV()->name, sizeof(IFNAMSIZ));
+				extend_ioctl_data.u.
+					if_name[IFNAMSIZ - 1] = '\0';
+				if (copy_to_user(ifr->ifr_ifru.ifru_data,
 					&extend_ioctl_data,
 					sizeof(struct rmnet_ioctl_extended_s)))
+					rc = -EFAULT;
+			} else {
+				IPAWANDBG("IPA_NETDEV is NULL\n");
 				rc = -EFAULT;
+			}
 			break;
 		/*  Add MUX ID  */
 		case RMNET_IOCTL_ADD_MUX_CHANNEL:

@@ -1,0 +1,89 @@
+/* Copyright (c) 2014-2019, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+/dts-v1/;
+
+#include "msm8909-xp3.dtsi"
+#include "msm8909-pm8909.dtsi"
+#include "msm8909-pm8909-mtp.dtsi"
+/ {
+	model = "Qualcomm Technologies, Inc. XP3 MSM8909-PM8909 MTP";
+	compatible = "qcom,msm8909-mtp", "qcom,msm8909", "qcom,mtp";
+	qcom,board-id = <8 6>, <8 0x16>;
+};
+
+&spmi_bus {
+	qcom,pm8909@0 {
+		qcom,leds@a300 {
+			status = "okay";
+			qcom,led_mpp_4 {
+				label = "mpp";
+				linux,name = "front-backlight";
+				linux,default-trigger = "bkl-trigger";
+				qcom,default-state = "off";
+				qcom,max-current = <40>;
+				qcom,current-setting = <5>;
+				qcom,id = <6>; qcom,mode = "manual";
+				qcom,source-sel = <1>;
+				qcom,mode-ctrl = <0x60>;
+				status = "okay";
+			};
+		};
+	};
+};
+
+&pm8909_gpios {
+	gpio@c000 { /* GPIO 1 */
+		/* Battery UICC Alarm */
+		status = "disabled";
+	};
+
+	gpio@c100 { /* GPIO 1 */
+		/* Battery UICC Alarm */
+		status = "disabled";
+	};
+
+	gpio@c200 { /* GPIO 1 */
+		/* Battery UICC Alarm */
+		status = "disabled";
+	};
+
+	gpio@c300 { /* GPIO 4 */
+		status = "ok";
+		qcom,mode = <1>; /* QPNP_PIN_MODE_DIG_OUT */
+		qcom,pull = <5>; /* QPNP_PIN_PULL_NO */
+		qcom,vin-sel = <2>; /* QPNP_PIN_VIN2 */
+		qcom,src-sel = <2>; /* QPNP_PIN_SEL_FUNC_1 */
+		qcom,master-en = <1>;
+	};
+};
+
+&pm8909_chg {
+	status = "ok";
+	qcom,cool-bat-decidegc = <0>;
+	qcom,float-charge;
+	qcom,chgr-led-support;
+	/delete-property/ qcom,charging-disabled;
+	qcom,red-led-en = <&pm8909_gpios 4 0>;
+};
+
+&pm8909_bms {
+	status = "ok";
+	qcom,battery-data = <&mtp_batterydata>;
+	qcom,batt-aging-comp;
+	qcom,fg-cc-cv-threshold-mv=<4170>;
+};
+&pm8909_mpps {
+	mpp@a100 { /* MPP 2 */
+		qcom,invert = <1>;		/* Disable invert */
+	};
+};

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -153,7 +153,7 @@
 		interrupt-parent = <&msm_gpio>;
 		interrupts = <36 0x2003>;
 		vddio-supply = <&pm8909_l5>;
-		linux,gpio-int = <&msm_gpio 36 0x1>;
+		linux,gpio-int_1 = <&msm_gpio 36 0x1>;
 		linux,wakeup;
 		linux,min-uv = <1650000>;
 		linux,max-uv = <3300000>;

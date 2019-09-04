@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014-2015, 2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -368,6 +368,7 @@ struct wcd_mbhc_cb {
 struct wcd_mbhc {
 	/* Delayed work to report long button press */
 	struct delayed_work mbhc_btn_dwork;
+	struct delayed_work mbhc_ptt_btn_dwork;
 	int buttons_pressed;
 	struct wcd_mbhc_config *mbhc_cfg;
 	const struct wcd_mbhc_cb *mbhc_cb;
@@ -428,6 +429,11 @@ struct wcd_mbhc {
 	struct mutex hphr_pa_lock;
 
 	unsigned long intr_status;
+	/*PTT Btn Changes */
+	int ptt_btn;
+	int audio_sw;
+	int headset_sel;
+	bool ptt_supported;
 };
 #define WCD_MBHC_CAL_SIZE(buttons, rload) ( \
 	sizeof(struct wcd_mbhc_general_cfg) + \

@@ -2400,6 +2400,11 @@ static void battery_insertion_check(struct qpnp_bms_chip *chip)
 {
 	int present = (int)is_battery_present(chip);
 
+	/* disable the BMS service when battery is absent */
+	if (!present)
+		qpnp_masked_write_base(chip, chip->base + EN_CTL_REG,
+							BMS_EN_BIT, 0);
+
 	if (chip->battery_present != present) {
 		pr_debug("shadow_sts=%d status=%d\n",
 			chip->battery_present, present);
