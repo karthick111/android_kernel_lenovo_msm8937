@@ -35,6 +35,7 @@
 		fstab {
 			vendor {
 				dev = "/dev/block/platform/soc/7824900.sdhci/by-name/preload";
+				fsmgr_flags = "wait,verify";
 			};
 		};
 	};
