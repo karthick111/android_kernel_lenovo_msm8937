@@ -576,10 +576,10 @@ static void fts_report_value(struct fts_ts_data *data)
 		if (pdata->button_y_coor == event->au16_y[i])
 			for (j = 0; j < pdata->num_max_buttons; j++)
 				if (pdata->button_x_coor[j] == event->au16_x[i]) {
-					if (event->au8_touch_event[i] == FTS_TOUCH_CONTACT || data->disable_keys)
+					if (event->au8_touch_event[i] == FTS_TOUCH_CONTACT)
 						break;
 					input_report_key(data->input_dev, pdata->button_map[j],
-						event->au8_touch_event[i] == FTS_TOUCH_DOWN);
+						event->au8_touch_event[i] == FTS_TOUCH_DOWN || data->disable_keys);
 					input_sync(data->input_dev);
 					pr_info("B[%d]: button %d, %d, %d, %d\n", i, pdata->button_map[j], event->au16_y[i], event->au16_x[i], event->au8_touch_event[i]);
 					break;
