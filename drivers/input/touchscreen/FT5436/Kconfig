@@ -1,4 +1,4 @@
-config TOUCHSCREEN_FTS
+config TOUCHSCREEN_FTS_LENOVO
         tristate "FocalTech touchscreens"
         depends on I2C
         help
