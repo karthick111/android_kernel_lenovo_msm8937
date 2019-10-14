@@ -547,17 +547,6 @@ config TOUCHSCREEN_EDT_FT5X06
 	  To compile this driver as a module, choose M here: the
 	  module will be called edt-ft5x06.
 
-config TOUCHSCREEN_FTS
-	tristate "FocalTech touchscreens"
-	depends on I2C
-	help
-	  Say Y here if you have a focaltech touchscreen.
-
-	  If unsure, say N.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called fts_ts.
-
 config TOUCHSCREEN_MIGOR
 	tristate "Renesas MIGO-R touchscreen"
 	depends on SH_MIGOR && I2C
@@ -1146,9 +1135,9 @@ config TOUCHSCREEN_MAXIM_STI
 	  To compile this driver as a module, choose M here: the
 	  module will be called maxim_sti.
 
-source "drivers/input/touchscreen/FT5436/Kconfig"
 source "drivers/input/touchscreen/gt9xx/Kconfig"
 source "drivers/input/touchscreen/focaltech_touch/Kconfig"
+source "drivers/input/touchscreen/FT5436/Kconfig"
 
 config TOUCHSCREEN_HIMAX_CHIPSET
 	bool "Himax touchpanel CHIPSET"
