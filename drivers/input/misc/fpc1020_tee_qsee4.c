@@ -42,7 +42,6 @@
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/regulator/consumer.h>
-#include <linux/wakelock.h>
 #include <soc/qcom/scm.h>
 
 #define FPC1020_RESET_LOW_US 1000
@@ -62,7 +61,7 @@ struct fpc1020_data {
 	struct pinctrl *ts_pinctrl;
 	struct pinctrl_state *gpio_state_active;
 	struct pinctrl_state *gpio_state_suspend;
-	struct wake_lock ttw_wl;
+	struct wakeup_source ttw_wl;
 };
 
 static int fpc1020_request_named_gpio(struct fpc1020_data *fpc1020,
@@ -208,7 +207,7 @@ static irqreturn_t fpc1020_irq_handler(int irq, void *handle)
 	dev_dbg(fpc1020->dev, "%s\n", __func__);
 
 	if (fpc1020->wakeup_enabled) {
-		wake_lock_timeout(&fpc1020->ttw_wl,
+		__pm_wakeup_event(&fpc1020->ttw_wl,
 					msecs_to_jiffies(FPC_TTW_HOLD_TIME));
 	}
 
@@ -286,7 +285,7 @@ static int fpc1020_probe(struct platform_device *pdev)
 	/* Request that the interrupt should be wakeable */
 	enable_irq_wake(gpio_to_irq(fpc1020->irq_gpio));
 
-	wake_lock_init(&fpc1020->ttw_wl, WAKE_LOCK_SUSPEND, "fpc_ttw_wl");
+	wakeup_source_init(&fpc1020->ttw_wl, "fpc_ttw_wl");
 
 	rc = sysfs_create_group(&dev->kobj, &attribute_group);
 	if (rc) {
