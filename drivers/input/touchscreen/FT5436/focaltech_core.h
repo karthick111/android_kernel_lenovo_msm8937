@@ -67,7 +67,6 @@
 #include <linux/netdevice.h>
 #include <linux/unistd.h>
 #include <linux/ioctl.h>
-#include <linux/wakelock.h>
 #include "ft_gesture_lib.h"
 
 /*******************************************************************************
@@ -217,7 +216,7 @@ struct fts_ts_data {
 #endif
 	struct work_struct 	touch_event_work, resume_work;
 	struct workqueue_struct *ts_workqueue;
-	struct wake_lock resume_wake;
+	struct wakeup_source resume_wake;
 	struct regulator *vdd;
 	struct regulator *vcc_i2c;
 	char fw_name[FTS_FW_NAME_MAX_LEN];
