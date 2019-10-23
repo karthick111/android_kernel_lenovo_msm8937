@@ -42,11 +42,6 @@
 #if defined(CONFIG_FB)
 #include <linux/notifier.h>
 #include <linux/fb.h>
-
-#elif defined(CONFIG_HAS_EARLYSUSPEND)
-#include <linux/earlysuspend.h>
-/* Early-suspend level */
-#define FTS_SUSPEND_LEVEL 1
 #endif
 
 #if LENOVO_CHARGER_DETECT
@@ -1282,7 +1277,7 @@ int fts_ts_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops fts_ts_pm_ops = {
-#if (!defined(CONFIG_FB) && !defined(CONFIG_HAS_EARLYSUSPEND))
+#if (!defined(CONFIG_FB))
 	.suspend = fts_ts_suspend,
 	.resume = fts_ts_resume,
 #endif
@@ -1352,34 +1347,6 @@ static int fb_notifier_callback(struct notifier_block *self,
 	}
 
 	return 0;
-}
-#elif defined(CONFIG_HAS_EARLYSUSPEND)
-/*******************************************************************************
-*  Name: fts_ts_early_suspend
-*  Brief:
-*  Input:
-*  Output:
-*  Return:
-*******************************************************************************/
-static void fts_ts_early_suspend(struct early_suspend *handler)
-{
-	struct fts_ts_data *data = container_of(handler, struct fts_ts_data, early_suspend);
-
-	fts_ts_suspend(&data->client->dev);
-}
-
-/*******************************************************************************
-*  Name: fts_ts_late_resume
-*  Brief:
-*  Input:
-*  Output:
-*  Return:
-*******************************************************************************/
-static void fts_ts_late_resume(struct early_suspend *handler)
-{
-	struct fts_ts_data *data = container_of(handler, struct fts_ts_data, early_suspend);
-
-	fts_ts_resume(&data->client->dev);
 }
 #endif
 
@@ -2239,11 +2206,6 @@ static int fts_ts_probe(struct i2c_client *client, const struct i2c_device_id *i
 
 	if (err)
 		dev_err(&client->dev, "Unable to register fb_notifier: %d\n", err);
-#elif defined(CONFIG_HAS_EARLYSUSPEND)
-	data->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + FTS_SUSPEND_LEVEL;
-	data->early_suspend.suspend = fts_ts_early_suspend;
-	data->early_suspend.resume = fts_ts_late_resume;
-	register_early_suspend(&data->early_suspend);
 #endif
 
         err = sysfs_create_group(&client->dev.kobj, &fts_ts_attr_group);
@@ -2391,8 +2353,6 @@ static int fts_ts_remove(struct i2c_client *client)
 #if defined(CONFIG_FB)
 	if (fb_unregister_client(&data->fb_notif))
 		dev_err(&client->dev, "Error occurred while unregistering fb_notifier.\n");
-#elif defined(CONFIG_HAS_EARLYSUSPEND)
-	unregister_early_suspend(&data->early_suspend);
 #endif
 	free_irq(client->irq, data);
 
