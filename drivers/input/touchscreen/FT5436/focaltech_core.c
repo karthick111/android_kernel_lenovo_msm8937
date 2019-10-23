@@ -1325,7 +1325,7 @@ static void do_fts_ts_resume(struct work_struct *self)
     struct fts_ts_data *fts_data = container_of(self, struct fts_ts_data, resume_work);
     if(likely(fts_data != NULL)) {
         fts_ts_resume(&fts_data->client->dev);
-        wake_unlock(&fts_data->resume_wake);
+        __pm_relax(&fts_data->resume_wake);
     } else {
         pr_err("TOUCHSCREEN: NULL pointer error\n");
     }
@@ -1343,7 +1343,7 @@ static int fb_notifier_callback(struct notifier_block *self,
         if (*blank == FB_BLANK_UNBLANK
 			|| *blank == FB_BLANK_NORMAL
 			|| *blank == FB_BLANK_VSYNC_SUSPEND) {
-            wake_lock(&fts_data->resume_wake);
+            __pm_stay_awake(&fts_data->resume_wake);
             queue_work(fts_data->ts_workqueue, &fts_data->resume_work);
 			//fts_ts_resume(&fts_data->client->dev);
         }
@@ -2059,7 +2059,7 @@ static int fts_ts_probe(struct i2c_client *client, const struct i2c_device_id *i
 	}
 
     INIT_WORK(&data->resume_work, do_fts_ts_resume);
-    wake_lock_init(&data->resume_wake, WAKE_LOCK_SUSPEND, "touch_wake");
+    wakeup_source_init(&data->resume_wake, "touch_wake");
 
 	err = request_threaded_irq(client->irq, NULL, fts_ts_interrupt,
 				pdata->irqflags | IRQF_ONESHOT | IRQF_TRIGGER_FALLING,
