@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2017, 2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -213,6 +213,7 @@ static struct qpnp_vadc_scale_fn vadc_scale_fn[] = {
 	[SCALE_THERM_100K_PULLUP] = {qpnp_adc_scale_therm_pu2},
 	[SCALE_THERM_150K_PULLUP] = {qpnp_adc_scale_therm_pu1},
 	[SCALE_QRD_BATT_THERM] = {qpnp_adc_scale_qrd_batt_therm},
+	[SCALE_XP3_BATT_THERM] = {qpnp_adc_scale_xp3_batt_therm},
 	[SCALE_QRD_SKUAA_BATT_THERM] = {qpnp_adc_scale_qrd_skuaa_batt_therm},
 	[SCALE_SMB_BATT_THERM] = {qpnp_adc_scale_smb_batt_therm},
 	[SCALE_QRD_SKUG_BATT_THERM] = {qpnp_adc_scale_qrd_skug_batt_therm},

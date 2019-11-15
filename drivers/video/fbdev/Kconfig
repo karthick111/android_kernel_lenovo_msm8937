@@ -2501,3 +2501,33 @@ config FB_SSD1307
 	help
 	  This driver implements support for the Solomon SSD1307
 	  OLED controller over I2C.
+
+config FB_ST7735S
+	tristate "Sitronix ST7735S framebuffer support"
+	depends on FB && SPI
+	depends on OF
+	depends on GPIOLIB
+	select FB_SYS_FOPS
+	select FB_SYS_FILLRECT
+	select FB_SYS_COPYAREA
+	select FB_SYS_IMAGEBLIT
+	select FB_DEFERRED_IO
+	select PWM
+	help
+	  This driver implements support for the Sitronix ST7789H2
+	  LCD controller over SPI.
+
+config FB_UC1617S
+	tristate "Rocktech UC1617S Monochrome LCM"
+	depends on FB && SPI
+	depends on OF
+	depends on GPIOLIB
+	select FB_SYS_FOPS
+	select FB_SYS_FILLRECT
+	select FB_SYS_COPYAREA
+	select FB_SYS_IMAGEBLIT
+	select FB_DEFERRED_IO
+	select PWM
+	help
+	  This driver implements support for the Rocktech UC1617 Monochrome
+	  LCD controller over SPI.

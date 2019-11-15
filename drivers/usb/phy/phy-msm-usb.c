@@ -1845,6 +1845,11 @@ static void msm_otg_notify_charger(struct msm_otg *motg, unsigned mA)
 			"Failed notifying %d charger type to PMIC\n",
 							motg->chg_type);
 
+	/* Override mA if charging_current_limit is required for any hardware */
+	if (pdata->charging_current_limit)
+		if (mA > pdata->charging_current_limit)
+			mA = pdata->charging_current_limit;
+
 	/*
 	 * This condition will be true when usb cable is disconnected
 	 * during bootup before enumeration. Check charger type also
@@ -4479,11 +4484,15 @@ struct msm_otg_platform_data *msm_otg_dt_to_pdata(struct platform_device *pdev)
 	pdata->vbus_low_as_hostmode = of_property_read_bool(node,
 					"qcom,vbus-low-as-hostmode");
 
+	of_property_read_u32(node, "qcom,charging-current-limit",
+			&pdata->charging_current_limit);
+
 	of_property_read_u32(node, "qcom,floated-charger-enable",
 		&pdata->enable_floated_charger);
 	if (pdata->enable_floated_charger == FLOATING_AS_DCP ||
 		pdata->enable_floated_charger == FLOATING_AS_INVALID)
 		debug_floated_charger_enabled = true;
+
 	return pdata;
 }
 

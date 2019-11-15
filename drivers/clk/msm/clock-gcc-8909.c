@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -2715,6 +2715,18 @@ static int msm_gcc_probe(struct platform_device *pdev)
 		return PTR_ERR(xo_a_clk_src.c.parent);
 	}
 
+	if (of_property_read_bool(pdev->dev.of_node, "qcom,xp3-clock-freq")) {
+
+		struct clk_freq_tbl ftbl_gcc_camss_mclk_clk_xp3 =
+					F(19200000, xo, 1, 0, 0);
+
+		memcpy(&ftbl_gcc_camss_mclk0_1_clk[0],
+			&ftbl_gcc_camss_mclk_clk_xp3,
+			sizeof(struct clk_freq_tbl));
+		memcpy(&ftbl_gcc_camss_mclkm_clk[0],
+			&ftbl_gcc_camss_mclk_clk_xp3,
+			sizeof(struct clk_freq_tbl));
+	}
 	gcc_gfx3d_fmax(pdev);
 
 	ret = of_msm_clock_register(pdev->dev.of_node,

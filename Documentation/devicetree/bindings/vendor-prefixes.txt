@@ -154,6 +154,7 @@ realtek Realtek Semiconductor Corp.
 renesas	Renesas Electronics Corporation
 ricoh	Ricoh Co. Ltd.
 rockchip	Fuzhou Rockchip Electronics Co., Ltd
+rocktech	Rocktech Displays Ltd
 samsung	Samsung Semiconductor
 sandisk	Sandisk Corporation
 sbs	Smart Battery System
@@ -201,6 +202,7 @@ xlnx	Xilinx
 zyxel	ZyXEL Communications Corp.
 zarlink	Zarlink Semiconductor
 bosch-sensortec»    Bosch Sensortec GmbH
+inven   InvenSense, Inc.
 lontium Lontium Semiconductor
 himax	Himax Technologies, Inc.
 hxcommon	Himax Technologies, Inc.

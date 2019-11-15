@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2017, 2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -483,6 +483,11 @@ int ipa_rm_request_resource_with_timer(enum ipa_rm_resource_name resource_name)
 
 	if (!IPA_RM_RESORCE_IS_CONS(resource_name)) {
 		IPA_RM_ERR("can be called on CONS only\n");
+		return -EINVAL;
+	}
+
+	if (!ipa_rm_ctx) {
+		IPA_RM_ERR("IPA RM was not initialized\n");
 		return -EINVAL;
 	}
 

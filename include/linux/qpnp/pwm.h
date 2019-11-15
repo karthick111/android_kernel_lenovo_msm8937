@@ -111,6 +111,9 @@ struct pwm_duty_cycles {
 int pwm_config_period(struct pwm_device *pwm,
 			     struct pwm_period_config *pwm_p);
 
+int pwm_spmi_register_writel(struct pwm_device *pwm,
+			     u16 addr, u8 *buf, int len);
+
 int pwm_config_pwm_value(struct pwm_device *pwm, int pwm_value);
 
 /*

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
 *
 * This program is free software; you can redistribute it and/or modify
 * it under the terms of the GNU General Public License version 2 and
@@ -15,6 +15,7 @@
 #define _APR_AUDIO_V2_H_
 
 #include <linux/qdsp6v2/apr.h>
+#include <linux/msm_audio.h>
 
 /* size of header needed for passing data out of band */
 #define APR_CMD_OB_HDR_SZ  12
@@ -442,6 +443,21 @@ struct adm_param_data_v5 {
 	 * This field must be set to zero.
 	 */
 } __packed;
+
+#define DSP_STREAM_CMD "ADSP Stream Cmd"
+#define DSP_STREAM_CALLBACK "ADSP Stream Callback Event"
+#define DSP_STREAM_CALLBACK_QUEUE_SIZE 1024
+
+struct dsp_stream_callback_list {
+	struct list_head list;
+	struct msm_adsp_event_data event;
+};
+
+struct dsp_stream_callback_prtd {
+	uint16_t event_count;
+	struct list_head event_queue;
+	spinlock_t prtd_spin_lock;
+};
 
 /* set customized mixing on matrix mixer */
 #define ADM_CMD_SET_PSPD_MTMX_STRTR_PARAMS_V5                        0x00010344
