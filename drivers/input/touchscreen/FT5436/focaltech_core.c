@@ -576,7 +576,7 @@ static void fts_report_value(struct fts_ts_data *data)
 					input_report_key(data->input_dev, pdata->button_map[j],
 						event->au8_touch_event[i] == FTS_TOUCH_DOWN || data->disable_keys);
 					input_sync(data->input_dev);
-					pr_info("B[%d]: button %d, %d, %d, %d\n", i, pdata->button_map[j], event->au16_y[i], event->au16_x[i], event->au8_touch_event[i]);
+					pr_debug("B[%d]: button %d, %d, %d, %d\n", i, pdata->button_map[j], event->au16_y[i], event->au16_x[i], event->au8_touch_event[i]);
 					break;
 				}
 	}
@@ -595,12 +595,12 @@ static void fts_report_value(struct fts_ts_data *data)
 			input_report_abs(data->input_dev, ABS_MT_POSITION_Y, event->au16_y[i]);
 			touchs |= BIT(event->au8_finger_id[i]);
 			data->touchs |= BIT(event->au8_finger_id[i]);
-			pr_info("F[%d]-%d: %d, %d, %d\n", i, event->au8_finger_id[i], event->au16_y[i], event->au16_x[i], event->au8_touch_event[i]);
+			pr_debug("F[%d]-%d: %d, %d, %d\n", i, event->au8_finger_id[i], event->au16_y[i], event->au16_x[i], event->au8_touch_event[i]);
 		} else {
 			uppoint++;
 			input_mt_report_slot_state(data->input_dev, MT_TOOL_FINGER, false);
 			data->touchs &= ~BIT(event->au8_finger_id[i]);
-			pr_info("F[%d]-%d: %d, %d, %d\n", i, event->au8_finger_id[i], event->au16_y[i], event->au16_x[i], event->au8_touch_event[i]);
+			pr_debug("F[%d]-%d: %d, %d, %d\n", i, event->au8_finger_id[i], event->au16_y[i], event->au16_x[i], event->au8_touch_event[i]);
 		}
 	}
 
@@ -609,7 +609,7 @@ static void fts_report_value(struct fts_ts_data *data)
 			if (BIT(i) & (data->touchs ^ touchs)) {
 				input_mt_slot(data->input_dev, i);
 				input_mt_report_slot_state(data->input_dev, MT_TOOL_FINGER, false);
-				pr_info("F[%d]: release\n", i);
+				pr_debug("F[%d]: release\n", i);
 			}
 		}
 	}
@@ -1042,7 +1042,7 @@ static int fts_ts_stop(struct device *dev)
 	for (i = 0; i < data->pdata->num_max_touches; i++) {
 		input_mt_slot(data->input_dev, i);
 		input_mt_report_slot_state(data->input_dev, MT_TOOL_FINGER, 0);
-		pr_info("F[%d]: rel\n", i);
+		pr_debug("F[%d]: rel\n", i);
 	}
 	input_mt_report_pointer_emulation(data->input_dev, false);
 	input_sync(data->input_dev);
@@ -1160,7 +1160,7 @@ int fts_ts_suspend(struct device *dev)
 		for (i = 0; i < data->pdata->num_max_touches; i++) {
 			input_mt_slot(data->input_dev, i);
 			input_mt_report_slot_state(data->input_dev, MT_TOOL_FINGER, 0);
-			pr_info("F[%d]: rel..\n", i);
+			pr_debug("F[%d]: rel..\n", i);
 		}
 		input_mt_report_pointer_emulation(data->input_dev, false);
 		input_sync(data->input_dev);
