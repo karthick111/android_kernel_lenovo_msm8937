@@ -832,7 +832,7 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 	 * for the backlight brightness. If the brightness is less
 	 * than it, the controller can malfunction.
 	 */
-         pr_info("[LCD]%s bl_level = %d\n",__func__,bl_level);
+         pr_debug("[LCD]%s bl_level = %d\n",__func__,bl_level);
 
 	if ((bl_level < pdata->panel_info.bl_min) && (bl_level != 0))
 		bl_level = pdata->panel_info.bl_min;
@@ -913,7 +913,7 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 	ctrl = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
 
-	pr_info("[LCD]%s: ndx=%d\n", __func__, ctrl->ndx);
+	pr_debug("[LCD]%s: ndx=%d\n", __func__, ctrl->ndx);
 
 	if (pinfo->dcs_cmd_by_left) {
 		if (ctrl->ndx != DSI_CTRL_LEFT)
@@ -941,7 +941,7 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 	mdss_dsi_panel_apply_display_setting(pdata, pinfo->persist_mode);
 
 end:
-	pr_info("[LCD]%s:-\n", __func__);
+	pr_debug("[LCD]%s:-\n", __func__);
 	return ret;
 }
 
@@ -993,7 +993,7 @@ static int mdss_dsi_post_panel_on(struct mdss_panel_data *pdata)
 	mdss_dsi_post_panel_on_hdmi(pinfo);
 
 end:
-	pr_info("[LCD]%s:-end\n", __func__);
+	pr_debug("[LCD]%s:-end\n", __func__);
 	return 0;
 }
 
@@ -1047,7 +1047,7 @@ end:
 	/* clear idle state */
 	ctrl->idle = false;
 	pr_debug("%s:-\n", __func__);
-	pr_info("[LCD]%s Done. cost %lu ms\n", __func__, jiffies_to_msecs(jiffies)-starttimejiffies);
+	pr_debug("[LCD]%s Done. cost %lu ms\n", __func__, jiffies_to_msecs(jiffies)-starttimejiffies);
 	return 0;
 }
 
@@ -1829,7 +1829,7 @@ static bool mdss_dsi_cmp_panel_reg_v2(struct mdss_dsi_ctrl_pdata *ctrl)
 
 	for (j = 0; j < ctrl->groups; ++j) {
 		for (i = 0; i < len; ++i) {
-			pr_info("ESD lcd reg:[%x]--[%x].\n", ctrl->return_buf[i], ctrl->status_value[group + i]);
+			pr_debug("ESD lcd reg:[%x]--[%x].\n", ctrl->return_buf[i], ctrl->status_value[group + i]);
 			if (ctrl->return_buf[i] !=
 				ctrl->status_value[group + i])
 				break;
