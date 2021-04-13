@@ -1890,7 +1890,7 @@ void mdss_fb_set_backlight(struct msm_fb_data_type *mfd, u32 bkl_lvl)
 		} else {
 			if (mfd->bl_level != bkl_lvl)
 				bl_notify_needed = true;
-			pr_info("backlight sent to panel :%d\n", temp);
+			pr_debug("backlight sent to panel :%d\n", temp);
 			if (mfd->mdp.is_twm_en)
 				twm_en = mfd->mdp.is_twm_en();
 
