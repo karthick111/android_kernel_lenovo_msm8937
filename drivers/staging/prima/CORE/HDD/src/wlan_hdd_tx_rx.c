@@ -2860,11 +2860,6 @@ VOS_STATUS hdd_rx_packet_cbk( v_VOID_t *vosContext,
          VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                    "%s :Duplicate IP detected",__func__);
       }
-#ifdef WLAN_FEATURE_HOLD_RX_WAKELOCK
-       vos_wake_lock_timeout_release(&pHddCtx->rx_wake_lock,
-                          HDD_WAKE_LOCK_DURATION,
-                          WIFI_POWER_EVENT_WAKELOCK_HOLD_RX);
-#endif
       if (pNextVosPacket)
       {
           rxstat = netif_rx(skb);
